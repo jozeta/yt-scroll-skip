@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- Minimal stand-in for a YouTube watch page. The tests serve it at www.youtube.com URLs via
+     request interception, so the real content script is injected exactly as on YouTube. -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { margin: 0; }
+    #movie_player { position: relative; width: 640px; height: 360px; background: #000; }
+    #movie_player video, #inline-player video { width: 100%; height: 100%; }
+    .ytp-settings-menu { position: absolute; top: 0; right: 0; width: 150px; height: 100px; overflow: auto; background: #333; }
+    #inline-player { position: relative; width: 320px; height: 180px; margin-top: 40px; }
+    #spacer { height: 4000px; }
+  </style>
+</head>
+<body>
+  <div id="movie_player" class="html5-video-player">
+    <video id="main" muted></video>
+    <div class="ytp-settings-menu"><div style="height: 600px"></div></div>
+  </div>
+  <div id="inline-player" class="html5-video-player"><video id="preview" muted></video></div>
+  <div id="spacer"></div>
+  <script>
+    // 120 s of silent 8 kHz mono 8-bit WAV: a real, seekable media file with no network.
+    function silentWav(seconds) {
+      const rate = 8000, n = rate * seconds, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+      const str = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+      str(0, 'RIFF'); v.setUint32(4, 36 + n, true); str(8, 'WAVE'); str(12, 'fmt ');
+      v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, rate, true); v.setUint32(28, rate, true); v.setUint16(32, 1, true);
+      v.setUint16(34, 8, true); str(36, 'data'); v.setUint32(40, n, true);
+      new Uint8Array(buf, 44).fill(128);
+      return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+    }
+    const src = silentWav(120);
+    window.ready = Promise.all(['main', 'preview'].map((id) => new Promise((resolve) => {
+      const video = document.getElementById(id);
+      video.addEventListener('loadedmetadata', resolve, { once: true });
+      video.src = src;
+    })));
+    // Record whether each wheel event ended up cancelled (read after dispatch finishes).
+    window.wheelLog = [];
+    window.addEventListener('wheel', (e) => setTimeout(() => wheelLog.push(e.defaultPrevented)), { capture: true });
+  </script>
+</body>
+</html>

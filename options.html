@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>YouTube Scroll to Skip options</title>
+  <style>
+    :root { color-scheme: light dark; --fg: #1f1f1f; --muted: #5f5f5f; --bg: #fff; --line: #ddd; }
+    @media (prefers-color-scheme: dark) { :root { --fg: #e8e8e8; --muted: #a0a0a0; --bg: #202124; --line: #3c4043; } }
+    body { margin: 0; padding: 16px 20px; min-width: 340px; font: 14px/1.4 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+    label { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    label:last-of-type { border-bottom: 0; }
+    input[type=checkbox] { margin-top: 3px; }
+    input[type=number] { width: 4.5em; margin-left: auto; }
+    small { display: block; color: var(--muted); }
+    #status { height: 1.2em; color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <label>
+    <input type="checkbox" id="enabled">
+    <span>Enabled<small>Same as clicking the toolbar icon.</small></span>
+  </label>
+  <label>
+    <span>Seconds per skip<small>How far one scroll gesture jumps.</small></span>
+    <input type="number" id="skipSeconds" min="1" max="600" step="1">
+  </label>
+  <label>
+    <input type="checkbox" id="invert">
+    <span>Invert direction<small>Scroll down to skip forward. Try this if skips feel backwards (e.g. with macOS natural scrolling).</small></span>
+  </label>
+  <label>
+    <input type="checkbox" id="modifierControls">
+    <span>Extra controls<small>Alt/Option + scroll: volume. Shift + scroll: playback speed. Sideways swipe while paused: step one frame.</small></span>
+  </label>
+  <div id="status" role="status"></div>
+  <script src="defaults.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

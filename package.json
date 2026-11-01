@@ -1,0 +1,13 @@
+{
+  "name": "yt-scroll-skip",
+  "private": true,
+  "description": "Dev tooling only. The extension itself has no build step and no runtime dependencies.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/",
+    "package": "sh scripts/package.sh"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1"
+  }
+}
