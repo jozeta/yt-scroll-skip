@@ -138,17 +138,54 @@
     showToast(player, `${icon} ${sign}${Math.abs(accumulated.total)}s · ${position}`);
   }
 
+  // Ask page-bridge.js (MAIN world) to do this through YouTube's player API, so YouTube's own UI
+  // updates. Returns its result, or null if the API isn't available and we must do it ourselves.
+  function viaPlayerApi(player, command) {
+    if (!player) return null;
+    const event = new CustomEvent('yss-command', {
+      detail: JSON.stringify(command),
+      bubbles: true,
+      cancelable: true,
+    });
+    const handled = !player.dispatchEvent(event); // listeners run synchronously
+    const raw = player.dataset.yssResult;
+    delete player.dataset.yssResult;
+    if (!handled || !raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
   function changeVolume(player, video, direction) {
-    const volume = Math.round(Math.min(Math.max(video.volume + direction * VOLUME_STEP, 0), 1) * 100) / 100;
-    video.volume = volume;
-    if (direction > 0) video.muted = false;
-    showToast(player, `${volume === 0 || video.muted ? '🔇' : '🔊'} ${Math.round(volume * 100)}%`);
+    let result = viaPlayerApi(player, { action: 'volume', direction, step: VOLUME_STEP });
+    if (!result) {
+      const volume = Math.min(Math.max(video.volume + direction * VOLUME_STEP, 0), 1);
+      video.volume = Math.round(volume * 100) / 100;
+      if (direction > 0) video.muted = false;
+      result = { volume: Math.round(video.volume * 100), muted: video.muted };
+    }
+    showToast(player, `${result.volume === 0 || result.muted ? '🔇' : '🔊'} ${result.volume}%`);
   }
 
   function changeSpeed(player, video, direction) {
-    const rate = Math.min(Math.max(video.playbackRate + direction * SPEED_STEP, SPEED_MIN), SPEED_MAX);
-    video.playbackRate = rate;
-    showToast(player, `⏱ ${rate}×`);
+    const command = {
+      action: 'speed',
+      direction,
+      step: SPEED_STEP,
+      min: SPEED_MIN,
+      max: SPEED_MAX,
+      current: video.playbackRate,
+    };
+    let result = viaPlayerApi(player, command);
+    if (!result) {
+      // Outside YouTube's own range (or no API): set the element directly.
+      const rate = Math.min(Math.max(video.playbackRate + direction * SPEED_STEP, SPEED_MIN), SPEED_MAX);
+      video.playbackRate = rate;
+      result = { rate };
+    }
+    showToast(player, `⏱ ${result.rate}×`);
   }
 
   function stepFrame(player, video, direction) {

@@ -4,7 +4,7 @@
   "description": "Dev tooling only. The extension itself has no build step and no runtime dependencies.",
   "type": "module",
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test test/*.test.mjs",
     "package": "sh scripts/package.sh"
   },
   "devDependencies": {

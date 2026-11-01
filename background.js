@@ -13,11 +13,14 @@ function refreshBadge() {
   chrome.storage.sync.get({ enabled: true }, ({ enabled }) => updateBadge(enabled));
 }
 
-chrome.action.onClicked.addListener(() => {
-  chrome.storage.sync.get({ enabled: true }, ({ enabled }) => {
-    chrome.storage.sync.set({ enabled: !enabled }); // onChanged below updates the badge
-  });
-});
+// Named (and global) so the tests can run exactly what a toolbar click runs.
+async function toggleEnabled() {
+  const { enabled } = await chrome.storage.sync.get({ enabled: true });
+  await chrome.storage.sync.set({ enabled: !enabled }); // onChanged below updates the badge
+  return !enabled;
+}
+
+chrome.action.onClicked.addListener(toggleEnabled);
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && 'enabled' in changes) updateBadge(changes.enabled.newValue !== false);

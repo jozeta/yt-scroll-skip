@@ -1,12 +1,16 @@
 {
   "manifest_version": 3,
   "name": "YouTube Scroll to Skip",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Scroll up/down over a YouTube video to skip forward or backward. Click the icon to turn it on or off.",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "background": {
     "service_worker": "background.js",
-    "scripts": ["background.js"]
+    "scripts": [
+      "background.js"
+    ]
   },
   "action": {
     "default_title": "YouTube Scroll to Skip: click to turn on/off",
@@ -27,7 +31,24 @@
         "*://music.youtube.com/*",
         "*://www.youtube-nocookie.com/*"
       ],
-      "js": ["defaults.js", "content.js"],
+      "js": [
+        "defaults.js",
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://m.youtube.com/*",
+        "*://music.youtube.com/*",
+        "*://www.youtube-nocookie.com/*"
+      ],
+      "js": [
+        "page-bridge.js"
+      ],
+      "world": "MAIN",
       "run_at": "document_idle",
       "all_frames": true
     }
@@ -39,7 +60,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "yt-scroll-skip@zetterstrom",
-      "strict_min_version": "121.0"
+      "strict_min_version": "128.0"
     }
   }
 }

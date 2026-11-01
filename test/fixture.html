@@ -38,6 +38,28 @@
       video.addEventListener('loadedmetadata', resolve, { once: true });
       video.src = src;
     })));
+    // Fake YouTube player API on #movie_player (page world), as page-bridge.js expects.
+    // Calls are logged; removePlayerApi() simulates YouTube without it.
+    window.apiCalls = [];
+    (() => {
+      const player = document.getElementById('movie_player');
+      const video = document.getElementById('main');
+      const state = { volume: 50, muted: false };
+      Object.assign(player, {
+        getVolume: () => state.volume,
+        setVolume: (n) => { apiCalls.push(['setVolume', n]); state.volume = n; video.volume = n / 100; },
+        isMuted: () => state.muted,
+        mute: () => { state.muted = true; },
+        unMute: () => { apiCalls.push(['unMute']); state.muted = false; },
+        getPlaybackRate: () => video.playbackRate,
+        getAvailablePlaybackRates: () => [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
+        setPlaybackRate: (r) => { apiCalls.push(['setPlaybackRate', r]); video.playbackRate = r; },
+      });
+      window.removePlayerApi = () => {
+        for (const k of ['getVolume', 'setVolume', 'isMuted', 'mute', 'unMute', 'getPlaybackRate',
+          'getAvailablePlaybackRates', 'setPlaybackRate']) delete player[k];
+      };
+    })();
     // Record whether each wheel event ended up cancelled (read after dispatch finishes).
     window.wheelLog = [];
     window.addEventListener('wheel', (e) => setTimeout(() => wheelLog.push(e.defaultPrevented)), { capture: true });

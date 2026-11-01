@@ -17,7 +17,9 @@ permission is `storage`. No network, no build step for the extension itself.
   (`test/extension.test.mjs`): they load the real unpacked extension into headless Chromium and
   serve `test/fixture.html` (a fake `#movie_player` with a generated silent WAV) at
   `www.youtube.com` URLs, so the content script injects as it does on YouTube.
-  Add a test for every behaviour change.
+  It also covers the options page and the toolbar toggle (via the global `toggleEnabled()`).
+  Add a test for every behaviour change. CI (`.github/workflows/test.yml`) runs the suite on
+  pushes to `main` and on PRs.
 - Still check by hand on real YouTube: normal video, fullscreen, an embed, an ad, a live stream,
   `/shorts/`, the home feed (hover previews) and a trackpad swipe.
 - Release: `npm run package` → `dist/yt-scroll-skip-<version>.zip` (runtime files only). Bump
@@ -36,7 +38,13 @@ permission is `storage`. No network, no build step for the extension itself.
   `findTarget` (player and video under the cursor) → `classify` (skip, volume, speed or frame, or
   null to pass the event through) → `preventDefault()` → act on the first event of a gesture.
   Settings update live through `storage.onChanged`.
-- `background.js`: clicking the toolbar icon flips `enabled`; the badge shows `OFF`.
+- `page-bridge.js`: a MAIN-world content script. `content.js` dispatches a cancelable
+  `yss-command` CustomEvent (detail = JSON string) on the player. The bridge calls YouTube's
+  player API, writes `data-yss-result` (JSON), and cancels the event to mean "handled". If the
+  event isn't cancelled, `content.js` falls back to setting the `<video>` directly. Only strings
+  and DOM state cross between worlds.
+- `background.js`: `toggleEnabled()` (the toolbar click handler) flips `enabled`; the badge
+  shows `OFF`.
 - `options.html` / `options.js`: the options page, which saves on change.
 
 ## Behaviour to preserve
@@ -44,6 +52,8 @@ permission is `storage`. No network, no build step for the extension itself.
 - Ctrl/Cmd + scroll is never intercepted (zoom).
 - `/shorts/` pages are left alone (native next-Short gesture).
 - No skipping while the player is inside `.ad-showing`.
+- Volume and speed go through YouTube's API when possible (keeps its UI in sync). Skips still
+  set `video.currentTime` (the owner chose this; don't switch to `seekTo`).
 - Seek the video inside the player under the cursor, never a global `<video>` lookup. Scrolls over
   player popups (`.ytp-popup`, `.ytp-settings-menu`, `.ytp-panel-menu`) and inline hover previews
   (`#inline-player`, `#video-preview`, `ytd-video-preview`) are passed through.
