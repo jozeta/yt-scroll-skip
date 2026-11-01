@@ -7,6 +7,6 @@ version=$(node -p "require('./manifest.json').version")
 out="dist/yt-scroll-skip-$version.zip"
 mkdir -p dist
 rm -f "$out"
-zip -q -X "$out" manifest.json defaults.js content.js background.js options.html options.js icon.png LICENSE
+zip -q -X "$out" manifest.json defaults.js content.js page-bridge.js background.js options.html options.js icon.png LICENSE
 echo "$out"
 unzip -l "$out"

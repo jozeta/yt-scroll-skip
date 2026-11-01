@@ -123,17 +123,57 @@ test('Ctrl+scroll is never intercepted', async () => {
   assert.equal(await time(), 30);
 });
 
-test('Alt+scroll changes volume, Shift+scroll changes speed', async () => {
-  await page.evaluate(() => (document.getElementById('main').volume = 0.5));
-  await page.keyboard.down('Alt');
-  await gesture(MAIN, -100);
-  await page.keyboard.up('Alt');
-  assert.equal(await page.evaluate(() => document.getElementById('main').volume), 0.55);
+async function withKey(key, fn) {
+  await page.keyboard.down(key);
+  try {
+    await fn();
+  } finally {
+    await page.keyboard.up(key);
+  }
+}
+const video = (prop) => page.evaluate((p) => document.getElementById('main')[p], prop);
+const apiCalls = () => page.evaluate(() => apiCalls);
 
-  await page.keyboard.down('Shift');
-  await gesture(MAIN, -100);
-  await page.keyboard.up('Shift');
-  assert.equal(await page.evaluate(() => document.getElementById('main').playbackRate), 1.25);
+test('Alt+scroll changes volume through YouTube\'s player API (so its slider updates)', async () => {
+  await withKey('Alt', () => gesture(MAIN, -100));
+  assert.deepEqual(await apiCalls(), [['setVolume', 55]]);
+  assert.equal(await toastText(), '🔊 55%');
+  await withKey('Alt', () => gesture(MAIN, 100));
+  assert.deepEqual((await apiCalls()).at(-1), ['setVolume', 50]);
+  assert.equal(await page.evaluate(() => 'yssResult' in document.getElementById('movie_player').dataset), false);
+});
+
+test('raising the volume while muted unmutes through the API', async () => {
+  await page.evaluate(() => document.getElementById('movie_player').mute());
+  await withKey('Alt', () => gesture(MAIN, -100));
+  assert.deepEqual(await apiCalls(), [['setVolume', 55], ['unMute']]);
+});
+
+test('Shift+scroll changes speed through the API within YouTube\'s range', async () => {
+  await withKey('Shift', () => gesture(MAIN, -100));
+  assert.deepEqual(await apiCalls(), [['setPlaybackRate', 1.25]]);
+  assert.equal(await toastText(), '⏱ 1.25×');
+});
+
+test('speeds beyond YouTube\'s range fall back to the <video> element', async () => {
+  await page.evaluate(() => (document.getElementById('main').playbackRate = 2));
+  await withKey('Shift', () => gesture(MAIN, -100));
+  assert.deepEqual(await apiCalls(), []);
+  assert.equal(await video('playbackRate'), 2.25);
+  await withKey('Shift', () => gesture(MAIN, 100)); // back inside the range: API again
+  assert.deepEqual(await apiCalls(), [['setPlaybackRate', 2]]);
+});
+
+test('without the player API, volume and speed change the <video> directly', async () => {
+  await page.evaluate(() => {
+    removePlayerApi();
+    document.getElementById('main').volume = 0.5;
+  });
+  await withKey('Alt', () => gesture(MAIN, -100));
+  assert.equal(await video('volume'), 0.55);
+  await withKey('Shift', () => gesture(MAIN, -100));
+  assert.equal(await video('playbackRate'), 1.25);
+  assert.equal(await toastText(), '⏱ 1.25×');
 });
 
 test('scrolling the settings menu scrolls the menu, not the video', async () => {
@@ -177,13 +217,74 @@ test('settings: skip length, invert and the on/off switch apply live', async () 
   assert.equal(await time(), 35);
 });
 
-test('the toolbar badge follows the enabled setting', async () => {
-  await worker.evaluate(() => chrome.storage.sync.set({ enabled: false }));
+test('clicking the toolbar icon toggles enabled and the badge', async () => {
+  // Playwright can't click the browser toolbar, so check the click listener is wired up and run
+  // the exact function it calls.
+  assert.equal(await worker.evaluate(() => chrome.action.onClicked.hasListeners()), true);
+  assert.equal(await worker.evaluate(() => toggleEnabled()), false);
   await sleep(100);
   assert.equal(await worker.evaluate(() => chrome.action.getBadgeText({})), 'OFF');
-  await worker.evaluate(() => chrome.storage.sync.set({ enabled: true }));
+  await setTime(30);
+  await gesture(MAIN, -100);
+  assert.equal(await time(), 30, 'disabled: no skip');
+
+  assert.equal(await worker.evaluate(() => toggleEnabled()), true);
   await sleep(100);
   assert.equal(await worker.evaluate(() => chrome.action.getBadgeText({})), '');
+  await gesture(MAIN, -100);
+  assert.equal(await time(), 40, 'enabled again: skips');
+});
+
+// --- Options page ---
+
+const stored = () => worker.evaluate(() => chrome.storage.sync.get(null));
+
+async function openOptions() {
+  const id = new URL(worker.url()).host;
+  await page.close();
+  page = await context.newPage();
+  await page.goto(`chrome-extension://${id}/options.html`);
+  await page.waitForFunction(() => document.getElementById('skipSeconds').value !== '');
+}
+
+test('options page shows the stored settings', async () => {
+  await worker.evaluate(() => chrome.storage.sync.set({ skipSeconds: 15, invert: true, modifierControls: false }));
+  await openOptions();
+  const values = await page.evaluate(() => ({
+    enabled: document.getElementById('enabled').checked,
+    skipSeconds: document.getElementById('skipSeconds').value,
+    invert: document.getElementById('invert').checked,
+    modifierControls: document.getElementById('modifierControls').checked,
+  }));
+  assert.deepEqual(values, { enabled: true, skipSeconds: '15', invert: true, modifierControls: false });
+});
+
+test('options page saves checkbox and number changes', async () => {
+  await openOptions();
+  await page.click('#invert');
+  await page.fill('#skipSeconds', '25');
+  await page.press('#skipSeconds', 'Tab'); // fires "change"
+  await page.waitForTimeout(150);
+  assert.equal((await stored()).invert, true);
+  assert.equal((await stored()).skipSeconds, 25);
+  assert.equal(await page.textContent('#status'), 'Saved');
+});
+
+test('options page rejects out-of-range skip lengths', async () => {
+  await openOptions();
+  for (const bad of ['0', '9999', '-5']) {
+    await page.fill('#skipSeconds', bad);
+    await page.press('#skipSeconds', 'Tab');
+    await page.waitForTimeout(100);
+    assert.equal((await stored()).skipSeconds, 10, `${bad} falls back to the default`);
+    assert.equal(await page.inputValue('#skipSeconds'), '10');
+  }
+});
+
+test('options page follows changes made elsewhere (toolbar toggle)', async () => {
+  await openOptions();
+  await worker.evaluate(() => toggleEnabled());
+  await page.waitForFunction(() => !document.getElementById('enabled').checked);
 });
 
 test('toast sits inside the player and is announced to screen readers', async () => {

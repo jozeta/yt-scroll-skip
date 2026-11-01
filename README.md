@@ -15,6 +15,7 @@ A toast over the player confirms each skip and shows where you landed, e.g. `⏩
 - **Extra controls** (can be turned off):
   - Alt/Option + scroll: volume
   - Shift + scroll: playback speed (0.25×–4×)
+  - Volume and speed go through YouTube's own player, so its volume slider and speed menu stay in sync. Speeds above YouTube's 2× limit are applied to the video directly.
   - Sideways swipe while paused: step one frame
 - **Works on** `www.youtube.com`, `m.youtube.com` and `music.youtube.com`, plus embedded players, including privacy-mode `youtube-nocookie.com` embeds.
 - **Live streams**: skips stay within the stream's seekable (DVR) window.
@@ -39,7 +40,7 @@ The extension isn't on the Chrome Web Store yet, so you install it manually as a
 2. Go to `chrome://extensions` and turn on **Developer mode** (top right).
 3. Click **Load unpacked** and select the folder that contains `manifest.json`.
 
-### Firefox (121+)
+### Firefox (128+)
 
 Go to `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and pick `manifest.json`. Firefox support is untested.
 
@@ -72,6 +73,8 @@ The content script (`content.js`, with the shared defaults from `defaults.js`) r
 
 Seeks are clamped to `video.seekable`. The toast is placed inside the player, or inside `document.fullscreenElement` when needed, because only the fullscreen element's subtree is drawn in fullscreen.
 
+Volume and speed changes go through `page-bridge.js`. It runs in the page's own JavaScript world (`"world": "MAIN"`), so it can call YouTube's player API (`setVolume`, `setPlaybackRate`). The content script can't call that API directly: it runs in an isolated world, sees the same DOM, but not the page's JavaScript objects. The two scripts talk through a DOM event. If the API is missing, the content script changes the `<video>` itself.
+
 `background.js` handles the toolbar toggle and badge, and `options.html`/`options.js` are the settings page.
 
 ## Development
@@ -82,7 +85,7 @@ npm test         # end-to-end tests in headless Chromium
 npm run package  # dist/yt-scroll-skip-<version>.zip for store upload
 ```
 
-The tests load the real extension into Playwright's Chromium and serve `test/fixture.html` (a fake YouTube player with a generated silent audio track) at `www.youtube.com` URLs. Real wheel events are then fired at it. After editing, also reload the extension in `chrome://extensions` and try it on real YouTube.
+The tests load the real extension into Playwright's Chromium and serve `test/fixture.html` (a fake YouTube player with a generated silent audio track and a fake player API) at `www.youtube.com` URLs. They also cover the options page and the toolbar toggle. GitHub Actions runs them on every push to `main` and every pull request, and uploads the store zip as a build artifact. Real wheel events are then fired at it. After editing, also reload the extension in `chrome://extensions` and try it on real YouTube.
 
 ### Publishing to the Chrome Web Store
 
@@ -98,11 +101,13 @@ The tests load the real extension into Playwright's Chromium and serve `test/fix
 ├── manifest.json      # Manifest V3 (Chrome service worker + Firefox background scripts)
 ├── defaults.js        # Default settings, shared by content and options scripts
 ├── content.js         # Wheel handling, seeking, modifier controls, toast
+├── page-bridge.js     # Page-world bridge to YouTube's player API (volume/speed)
 ├── background.js      # Toolbar on/off toggle and badge
 ├── options.html/.js   # Settings page
 ├── icon.png
 ├── test/              # Playwright end-to-end tests + fake YouTube fixture
 ├── scripts/package.sh # Builds the store zip
+├── .github/workflows/ # CI: runs the tests and builds the zip on every push/PR
 └── LICENSE            # MIT
 ```
 
