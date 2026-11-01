@@ -11,3 +11,7 @@
 *.key
 *.p12
 *.pfx
+
+# --- Dev tooling ---
+node_modules/
+dist/
