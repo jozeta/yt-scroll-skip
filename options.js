@@ -2,8 +2,11 @@
 const fields = Object.keys(YSS_DEFAULTS).map((key) => document.getElementById(key));
 const status = document.getElementById('status');
 let statusTimer = null;
+// The values currently shown, so an invalid entry can go back to what was there before.
+const current = { ...YSS_DEFAULTS };
 
 function render(values) {
+  Object.assign(current, values);
   for (const el of fields) {
     if (el.type === 'checkbox') el.checked = values[el.id];
     else el.value = values[el.id];
@@ -12,9 +15,13 @@ function render(values) {
 
 function readField(el) {
   if (el.type === 'checkbox') return el.checked;
+  if (el.tagName === 'SELECT') {
+    const allowed = [...el.options].map((o) => o.value);
+    return allowed.includes(el.value) ? el.value : current[el.id];
+  }
   const n = Math.round(Number(el.value));
   const valid = Number.isFinite(n) && n >= Number(el.min) && n <= Number(el.max);
-  return valid ? n : YSS_DEFAULTS[el.id];
+  return valid ? n : current[el.id];
 }
 
 chrome.storage.sync.get(YSS_DEFAULTS, render);
@@ -28,7 +35,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
 for (const el of fields) {
   el.addEventListener('change', () => {
     const value = readField(el);
-    if (el.type !== 'checkbox') el.value = value;
+    if (el.type !== 'checkbox') el.value = value; // shows the corrected value after a rejection
+    current[el.id] = value;
     chrome.storage.sync.set({ [el.id]: value }, () => {
       status.textContent = 'Saved';
       clearTimeout(statusTimer);

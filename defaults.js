@@ -2,7 +2,15 @@
 // eslint-disable-next-line no-unused-vars
 const YSS_DEFAULTS = Object.freeze({
   enabled: true, // toggled by clicking the toolbar icon, or on the options page
-  skipSeconds: 10, // seconds per scroll gesture
+  skipForward: 10, // seconds per forward scroll gesture
+  skipBack: 10, // seconds per backward scroll gesture
   invert: false, // true: scroll down = forward (for people who find the default backwards)
+  // Sideways (trackpad) swipes over the player: 'timeline' = scrub (a full swipe = timelineSpan of
+  // the video), 'skip' = skip like scrolling, 'off' = the browser's back/forward swipe.
+  horizontalSwipe: 'timeline',
+  timelineSpan: '25', // percent of the video one full trackpad swipe covers: '100' | '75' | '50' | '25' | '10'
   modifierControls: true, // Alt+scroll = volume, Shift+scroll = speed, sideways swipe while paused = frame step
+  toastPosition: 'center', // 'center' | 'bottom' | 'top' (centre keeps it clear of YouTube's control bar)
+  toastSize: 'medium',
+  showControls: true, // wake YouTube's own control bar (timeline) on every scroll or swipe // 'x-small' | 'small' | 'medium' | 'large' | 'x-large'
 });

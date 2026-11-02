@@ -10,7 +10,8 @@
     label { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
     label:last-of-type { border-bottom: 0; }
     input[type=checkbox] { margin-top: 3px; }
-    input[type=number] { width: 4.5em; margin-left: auto; }
+    input[type=number], select { margin-left: auto; font: inherit; }
+    input[type=number] { width: 4.5em; }
     small { display: block; color: var(--muted); }
     #status { height: 1.2em; color: var(--muted); font-size: 12px; }
   </style>
@@ -21,16 +22,60 @@
     <span>Enabled<small>Same as clicking the toolbar icon.</small></span>
   </label>
   <label>
-    <span>Seconds per skip<small>How far one scroll gesture jumps.</small></span>
-    <input type="number" id="skipSeconds" min="1" max="600" step="1">
+    <span>Skip forward<small>Seconds per scroll gesture forward.</small></span>
+    <input type="number" id="skipForward" min="1" max="600" step="1">
+  </label>
+  <label>
+    <span>Skip back<small>Seconds per scroll gesture back.</small></span>
+    <input type="number" id="skipBack" min="1" max="600" step="1">
   </label>
   <label>
     <input type="checkbox" id="invert">
     <span>Invert direction<small>Scroll down to skip forward. Try this if skips feel backwards (e.g. with macOS natural scrolling).</small></span>
   </label>
   <label>
+    <span>Sideways swipe<small>Trackpad swipes left↔right over the video. Timeline: the trackpad is the video's timeline. Skip: like scrolling. Off: the browser's back/forward swipe.</small></span>
+    <select id="horizontalSwipe">
+      <option value="timeline">Timeline</option>
+      <option value="skip">Skip</option>
+      <option value="off">Off</option>
+    </select>
+  </label>
+  <label>
+    <span>Timeline sensitivity<small>How much of the video one swipe across the whole trackpad covers. Lower it if scrubbing feels too sensitive, especially on long videos.</small></span>
+    <select id="timelineSpan">
+      <option value="100">100 %</option>
+      <option value="75">75 %</option>
+      <option value="50">50 %</option>
+      <option value="25">25 % of the video</option>
+      <option value="10">10 %</option>
+    </select>
+  </label>
+  <label>
     <input type="checkbox" id="modifierControls">
-    <span>Extra controls<small>Alt/Option + scroll: volume. Shift + scroll: playback speed. Sideways swipe while paused: step one frame.</small></span>
+    <span>Extra controls<small>Alt/Option + scroll: volume. Shift + scroll: playback speed. Sideways swipe while paused: step one frame (when Sideways swipe is Skip or Off).</small></span>
+  </label>
+  <label>
+    <input type="checkbox" id="showControls">
+    <span>Show YouTube's controls while scrolling<small>YouTube's own control bar (timeline and time) appears while you scroll or swipe, as if you had moved the mouse.</small></span>
+  </label>
+  <label>
+    <span>Overlay position<small>Where the overlay appears over the video.</small></span>
+    <select id="toastPosition">
+      <option value="center">Centre</option>
+      <option value="bottom">Bottom</option>
+      <option value="top">Top</option>
+    </select>
+  </label>
+  <label>
+    <span>Overlay size</span>
+    <select id="toastSize">
+      <option value="x-small">Extra small</option>
+      <option value="small">Small</option>
+      <option value="medium">Medium</option>
+      <option value="large">Large</option>
+      <option value="x-large">Extra large</option>
+    </select>
   </label>
   <div id="status" role="status"></div>
   <script src="defaults.js"></script>

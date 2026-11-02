@@ -60,6 +60,16 @@
           'getAvailablePlaybackRates', 'setPlaybackRate']) delete player[k];
       };
     })();
+    // Like YouTube, which shows its control bar on mousemove over the player but ignores a move to
+    // the position it last saw (verified on youtube.com): count the synthetic moves that would
+    // wake the controls.
+    window.controlWakes = 0;
+    let lastMove = null;
+    document.getElementById('movie_player').addEventListener('mousemove', (e) => {
+      const moved = !lastMove || lastMove[0] !== e.clientX || lastMove[1] !== e.clientY;
+      lastMove = [e.clientX, e.clientY];
+      if (!e.isTrusted && moved) controlWakes++;
+    });
     // Record whether each wheel event ended up cancelled (read after dispatch finishes).
     window.wheelLog = [];
     window.addEventListener('wheel', (e) => setTimeout(() => wheelLog.push(e.defaultPrevented)), { capture: true });
