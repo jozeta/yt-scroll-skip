@@ -192,6 +192,32 @@ test('hover previews are ignored and the page still scrolls', async () => {
   assert.deepEqual(await page.evaluate(() => wheelLog), [false]);
 });
 
+// Covers the player at MAIN with a body-level layer, like YouTube's current embed controls.
+const addOverlay = (attrs) =>
+  page.evaluate((attrs) => {
+    const r = document.getElementById('movie_player').getBoundingClientRect();
+    const el = document.createElement('div');
+    Object.assign(el, attrs);
+    el.style.cssText = `position:absolute;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;z-index:10`;
+    document.body.appendChild(el);
+  }, attrs);
+
+test('embeds: scrolling over the separate #player-controls layer still skips', async () => {
+  await addOverlay({ id: 'player-controls' });
+  await setTime(30);
+  await gesture(MAIN, -100);
+  assert.equal(await time(), 40);
+  assert.equal(await page.evaluate(() => window.scrollY), 0);
+});
+
+test('other layers over the player (e.g. dialogs) are left alone', async () => {
+  await addOverlay({ id: 'some-dialog' });
+  await setTime(30);
+  await gesture(MAIN, -100);
+  assert.equal(await time(), 30);
+  assert.deepEqual(await page.evaluate(() => wheelLog), [false]);
+});
+
 test('no skipping while an ad is showing', async () => {
   await setTime(30);
   await page.evaluate(() => document.getElementById('movie_player').classList.add('ad-showing'));
