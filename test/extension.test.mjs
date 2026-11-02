@@ -115,6 +115,15 @@ test('horizontal swipe while paused steps one frame', async () => {
   assert.match(await toastText(), /1 frame/);
 });
 
+test('frame steps stay inside the video and stop short of the end', async () => {
+  await setTime(119.6);
+  await gesture(MAIN, 0, 100);
+  assert.equal(await time(), 119.6, 'no step into the end (autoplay)');
+  await setTime(0.01);
+  await gesture(MAIN, 0, -100);
+  assert.equal(await time(), 0);
+});
+
 test('Ctrl+scroll is never intercepted', async () => {
   await setTime(30);
   await page.keyboard.down('Control');
@@ -141,6 +150,18 @@ test('Alt+scroll changes volume through YouTube\'s player API (so its slider upd
   await withKey('Alt', () => gesture(MAIN, 100));
   assert.deepEqual((await apiCalls()).at(-1), ['setVolume', 50]);
   assert.equal(await page.evaluate(() => 'yssResult' in document.getElementById('movie_player').dataset), false);
+});
+
+test('pressing a modifier mid-gesture starts a new gesture instead of being swallowed', async () => {
+  await setTime(30);
+  await wheel(MAIN, 0, -40); // skip
+  await withKey('Alt', async () => {
+    await wheel(MAIN, 0, -40); // still inside the gap, but a different action
+    await wheel(MAIN, 0, -40); // same action again: same gesture, no second step
+  });
+  await sleep(GAP);
+  assert.equal(await time(), 40);
+  assert.deepEqual(await apiCalls(), [['setVolume', 55]]);
 });
 
 test('raising the volume while muted unmutes through the API', async () => {
@@ -296,14 +317,15 @@ test('options page saves checkbox and number changes', async () => {
   assert.equal(await page.textContent('#status'), 'Saved');
 });
 
-test('options page rejects out-of-range skip lengths', async () => {
+test('options page rejects out-of-range skip lengths and keeps the previous value', async () => {
+  await worker.evaluate(() => chrome.storage.sync.set({ skipSeconds: 15 }));
   await openOptions();
-  for (const bad of ['0', '9999', '-5']) {
+  for (const bad of ['0', '9999', '-5', '']) {
     await page.fill('#skipSeconds', bad);
     await page.press('#skipSeconds', 'Tab');
     await page.waitForTimeout(100);
-    assert.equal((await stored()).skipSeconds, 10, `${bad} falls back to the default`);
-    assert.equal(await page.inputValue('#skipSeconds'), '10');
+    assert.equal((await stored()).skipSeconds, 15, `"${bad}" keeps the previous value`);
+    assert.equal(await page.inputValue('#skipSeconds'), '15');
   }
 });
 

@@ -33,6 +33,7 @@
   });
 
   let lastWheel = 0;
+  let lastAction = null; // the action of the current gesture (skip, volume, speed, frame)
   let accumulated = { total: 0, at: 0 };
   let hideTimer = null;
   let toast = null;
@@ -115,6 +116,7 @@
   }
 
   // Clamp to the seekable range: [0, duration] for normal videos, the DVR window for live.
+  // Used by skips and frame steps alike.
   function seek(video, deltaSeconds) {
     const { seekable } = video;
     let start = 0;
@@ -197,7 +199,7 @@
   }
 
   function stepFrame(player, video, direction) {
-    video.currentTime = Math.max(video.currentTime + direction * FRAME_SECONDS, 0);
+    seek(video, direction * FRAME_SECONDS);
     showToast(player, `${direction > 0 ? '▶' : '◀'} 1 frame · ${formatTime(video.currentTime)}`);
   }
 
@@ -242,9 +244,12 @@
     e.preventDefault();
     e.stopPropagation();
 
+    // A new gesture starts after a quiet gap, or when the action changes mid-gesture (e.g.
+    // Alt pressed during a scroll), so pressing a modifier is never silently swallowed.
     const now = Date.now();
-    const isNewGesture = now - lastWheel > GESTURE_GAP_MS;
+    const isNewGesture = now - lastWheel > GESTURE_GAP_MS || intent.action !== lastAction;
     lastWheel = now;
+    lastAction = intent.action;
     if (!isNewGesture) return;
 
     if (intent.action === 'skip') skip(player, video, intent.direction, now);

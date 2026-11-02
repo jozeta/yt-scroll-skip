@@ -22,6 +22,8 @@ permission is `storage`. No network, no build step for the extension itself.
   pushes to `main` and on PRs.
 - Still check by hand on real YouTube: normal video, fullscreen, an embed, an ad, a live stream,
   `/shorts/`, the home feed (hover previews) and a trackpad swipe.
+- Screenshots: `npm run screenshots` regenerates `docs/toast.png` and `docs/options.png` from
+  the fixture. Rerun it when the toast or the options page changes.
 - Release: `npm run package` → `dist/yt-scroll-skip-<version>.zip` (runtime files only). Bump
   `version` in `manifest.json` first.
 
@@ -63,11 +65,12 @@ permission is `storage`. No network, no build step for the extension itself.
 - The toast goes inside the player when possible; otherwise into `document.fullscreenElement`
   (fullscreen) or `body`.
 - One gesture means one action: a gesture ends after `GESTURE_GAP_MS` without wheel events
-  (handles trackpad momentum). Events inside a gesture are still `preventDefault()`ed, so the page
+  (handles trackpad momentum), or when the classified action changes (a modifier pressed
+  mid-scroll). Events inside a gesture are still `preventDefault()`ed, so the page
   never scrolls under the player.
 - Horizontal swipes are passed through while playing (history swipe). While paused they step one
   frame, if `modifierControls` is on.
-- Clamp seeks to `video.seekable` (live/DVR), and stop forward skips `END_GUARD_SECONDS` before
-  the end (no autoplay).
+- Clamp seeks and frame steps (both go through `seek()`) to `video.seekable` (live/DVR), and
+  stop forward moves `END_GUARD_SECONDS` before the end (no autoplay).
 - Only the `storage` permission (approved by the owner); never add network access or other
   permissions without asking.

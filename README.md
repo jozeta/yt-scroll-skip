@@ -7,16 +7,18 @@ A small browser extension that lets you skip forward or backward in a YouTube vi
 
 A toast over the player confirms each skip and shows where you landed, e.g. `⏩ +10s · 4:32 / 12:05`. Quick repeated skips add up (`⏩ +30s`).
 
+![The toast over the player after two quick forward skips: "⏩ +20s · 0:52 / 2:00"](docs/toast.png)
+
 ## Features
 
-- **One gesture = one skip**, even with trackpad momentum scrolling. The page never scrolls underneath the player while you skip.
+- **One gesture = one skip**, even with trackpad momentum scrolling. The page never scrolls underneath the player while you skip. Pressing a modifier mid-scroll (say, Alt for volume) counts as a new gesture, so it isn't swallowed.
 - **Settings**: seconds per skip, invert direction, extra controls, and on/off.
 - **On/off from the toolbar**: click the extension icon. An `OFF` badge shows when it's disabled.
 - **Extra controls** (can be turned off):
   - Alt/Option + scroll: volume
   - Shift + scroll: playback speed (0.25×–4×)
   - Volume and speed go through YouTube's own player, so its volume slider and speed menu stay in sync. Speeds above YouTube's 2× limit are applied to the video directly.
-  - Sideways swipe while paused: step one frame
+  - Sideways swipe while paused: step one frame (stays inside the video, and stops short of the end like skips do)
 - **Works on** `www.youtube.com`, `m.youtube.com` and `music.youtube.com`, plus embedded players, including privacy-mode `youtube-nocookie.com` embeds.
 - **Live streams**: skips stay within the stream's seekable (DVR) window.
 - **Gets out of the way**:
@@ -59,6 +61,10 @@ Right-click the toolbar icon → **Options** (or use the **Details → Extension
 | Invert direction | off     | Scroll down = forward. Try it if the default feels backwards, e.g. with macOS natural scrolling |
 | Extra controls   | on      | Alt+scroll volume, Shift+scroll speed, sideways swipe while paused for one frame |
 
+An invalid "seconds per skip" (outside 1–600) is rejected and the previous value is kept.
+
+![The options page](docs/options.png)
+
 Finer tuning (the gesture gap, how long skips keep adding up, the end guard, volume and speed steps) is in the constants at the top of `content.js`.
 
 ## How it works
@@ -69,9 +75,9 @@ The content script (`content.js`, with the shared defaults from `defaults.js`) r
 2. Finds the player under the cursor (`#movie_player`, `#shorts-player` or `.html5-video-player`) and the `<video>` inside it. It skips player popups and feed hover previews.
 3. Backs off if that player is showing an ad.
 4. Decides what the event means: skip, volume, speed, frame step, or nothing (the event is then left for the page).
-5. Calls `preventDefault()`. It only acts on the first event of a gesture; a gesture ends after 200 ms without wheel events.
+5. Calls `preventDefault()`. It only acts on the first event of a gesture; a gesture ends after 200 ms without wheel events, or when the action changes (e.g. Alt pressed mid-scroll).
 
-Seeks are clamped to `video.seekable`. The toast is placed inside the player, or inside `document.fullscreenElement` when needed, because only the fullscreen element's subtree is drawn in fullscreen.
+Seeks and frame steps are clamped to `video.seekable`. The toast is placed inside the player, or inside `document.fullscreenElement` when needed, because only the fullscreen element's subtree is drawn in fullscreen.
 
 Volume and speed changes go through `page-bridge.js`. It runs in the page's own JavaScript world (`"world": "MAIN"`), so it can call YouTube's player API (`setVolume`, `setPlaybackRate`). The content script can't call that API directly: it runs in an isolated world, sees the same DOM, but not the page's JavaScript objects. The two scripts talk through a DOM event. If the API is missing, the content script changes the `<video>` itself.
 
@@ -82,10 +88,13 @@ Volume and speed changes go through `page-bridge.js`. It runs in the page's own 
 ```sh
 npm install      # dev tooling only (Playwright)
 npm test         # end-to-end tests in headless Chromium
-npm run package  # dist/yt-scroll-skip-<version>.zip for store upload
+npm run package      # dist/yt-scroll-skip-<version>.zip for store upload
+npm run screenshots  # regenerates docs/toast.png and docs/options.png
 ```
 
-The tests load the real extension into Playwright's Chromium and serve `test/fixture.html` (a fake YouTube player with a generated silent audio track and a fake player API) at `www.youtube.com` URLs. They also cover the options page and the toolbar toggle. GitHub Actions runs them on every push to `main` and every pull request, and uploads the store zip as a build artifact. Real wheel events are then fired at it. After editing, also reload the extension in `chrome://extensions` and try it on real YouTube.
+The tests load the real extension into Playwright's Chromium and serve `test/fixture.html` (a fake YouTube player with a generated silent audio track and a fake player API) at `www.youtube.com` URLs, then fire real wheel events at it. They also cover the options page and the toolbar toggle. GitHub Actions runs them on every push to `main` and every pull request, and uploads the store zip as a build artifact. After editing, also reload the extension in `chrome://extensions` and try it on real YouTube.
+
+The screenshots come from the same fixture (no real YouTube content), so they show the toast and options page, not a real video.
 
 ### Publishing to the Chrome Web Store
 
@@ -106,7 +115,10 @@ The tests load the real extension into Playwright's Chromium and serve `test/fix
 ├── options.html/.js   # Settings page
 ├── icon.png
 ├── test/              # Playwright end-to-end tests + fake YouTube fixture
-├── scripts/package.sh # Builds the store zip
+├── scripts/
+│   ├── package.sh     # Builds the store zip
+│   └── screenshots.mjs # Regenerates the README screenshots
+├── docs/              # README screenshots
 ├── .github/workflows/ # CI: runs the tests and builds the zip on every push/PR
 └── LICENSE            # MIT
 ```
