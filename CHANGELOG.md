@@ -6,6 +6,8 @@ Releases follow the project's git tags. Entries were reconstructed from the comm
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-02
+
 - Separate forward and back skip lengths (settings from 1.2.x carry over to both).
 - Overlay position (bottom, centre, top) and size (small, medium, large) settings.
 - A thin progress bar in the overlay: position in the video for skips and frame steps, level for
