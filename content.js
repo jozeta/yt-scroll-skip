@@ -69,6 +69,11 @@
     return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
   }
 
+  // The overlay: a large value (e.g. "+20 s") over a quieter detail line (e.g. "0:52 / 2:00").
+  // System fonts only, so nothing is fetched over the network.
+  const TOAST_FONT =
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Helvetica Neue", Inter, Roboto, Arial, sans-serif';
+
   function getToast() {
     if (toast) return toast;
     toast = document.createElement('div');
@@ -77,24 +82,39 @@
     toast.setAttribute('aria-live', 'polite');
     toast.style.cssText = `
       left: 50%;
-      bottom: 15%;
+      bottom: 14%;
       transform: translateX(-50%);
-      background: rgba(0,0,0,0.75);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 6px;
-      font-size: 15px;
-      font-family: Roboto, Arial, sans-serif;
+      box-sizing: border-box;
+      min-width: 240px;
+      padding: 22px 44px 20px;
+      background: rgba(48, 50, 54, 0.62);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(225, 228, 232, 0.45);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+      color: #f5f6f7;
+      font-family: ${TOAST_FONT};
+      font-variant-numeric: tabular-nums;
+      text-align: center;
       white-space: nowrap;
       z-index: 2147483647;
       pointer-events: none;
-      transition: opacity 0.3s ease;
+      transition: opacity 0.25s ease;
       opacity: 0;
     `;
+    const title = document.createElement('div');
+    title.className = 'yss-title';
+    title.style.cssText = 'font-size: 26px; font-weight: 500; line-height: 1.15; letter-spacing: -0.01em;';
+    const detail = document.createElement('div');
+    detail.className = 'yss-detail';
+    detail.style.cssText =
+      'margin-top: 6px; font-size: 13px; font-weight: 400; line-height: 1.3; letter-spacing: 0.04em; color: rgba(245, 246, 247, 0.72);';
+    toast.append(title, detail);
     return toast;
   }
 
-  function showToast(player, message) {
+  function showToast(player, title, detail = '') {
     const el = getToast();
     // Prefer showing it over the player itself (right place in theater mode, mini-player,
     // small embeds). In fullscreen only the fullscreen element's subtree renders, so fall
@@ -107,12 +127,14 @@
     el.style.position = inPlayer ? 'absolute' : 'fixed';
     if (el.parentNode !== container) container.appendChild(el);
 
-    el.textContent = message;
+    el.firstChild.textContent = title;
+    el.lastChild.textContent = detail;
+    el.lastChild.style.display = detail ? '' : 'none';
     el.style.opacity = '1';
     clearTimeout(hideTimer);
     hideTimer = setTimeout(() => {
       el.style.opacity = '0';
-    }, 800);
+    }, 900);
   }
 
   // Clamp to the seekable range: [0, duration] for normal videos, the DVR window for live.
@@ -133,6 +155,12 @@
     video.currentTime = Math.min(Math.max(target, start), end);
   }
 
+  function position(video) {
+    return Number.isFinite(video.duration)
+      ? `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`
+      : formatTime(video.currentTime);
+  }
+
   function skip(player, video, direction, now) {
     const delta = direction * settings.skipSeconds;
     const sameRun = now - accumulated.at < ACCUMULATE_MS && Math.sign(accumulated.total) === direction;
@@ -140,12 +168,8 @@
 
     seek(video, delta);
 
-    const icon = direction > 0 ? '⏩' : '⏪';
     const sign = direction > 0 ? '+' : '−';
-    const position = Number.isFinite(video.duration)
-      ? `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`
-      : formatTime(video.currentTime);
-    showToast(player, `${icon} ${sign}${Math.abs(accumulated.total)}s · ${position}`);
+    showToast(player, `${sign}${Math.abs(accumulated.total)} s`, position(video));
   }
 
   // Ask page-bridge.js (MAIN world) to do this through YouTube's player API, so YouTube's own UI
@@ -176,7 +200,7 @@
       if (direction > 0) video.muted = false;
       result = { volume: Math.round(video.volume * 100), muted: video.muted };
     }
-    showToast(player, `${result.volume === 0 || result.muted ? '🔇' : '🔊'} ${result.volume}%`);
+    showToast(player, result.volume === 0 || result.muted ? 'Muted' : `${result.volume} %`, 'Volume');
   }
 
   function changeSpeed(player, video, direction) {
@@ -195,12 +219,12 @@
       video.playbackRate = rate;
       result = { rate };
     }
-    showToast(player, `⏱ ${result.rate}×`);
+    showToast(player, `${result.rate}×`, 'Speed');
   }
 
   function stepFrame(player, video, direction) {
     seek(video, direction * FRAME_SECONDS);
-    showToast(player, `${direction > 0 ? '▶' : '◀'} 1 frame · ${formatTime(video.currentTime)}`);
+    showToast(player, direction > 0 ? 'Next frame' : 'Previous frame', position(video));
   }
 
   // Decide what this wheel event means, or null to let the page handle it.

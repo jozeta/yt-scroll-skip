@@ -48,7 +48,15 @@ beforeEach(async () => {
 
 const time = (id = 'main') => page.evaluate((id) => document.getElementById(id).currentTime, id);
 const setTime = (t, id = 'main') => page.evaluate(([t, id]) => (document.getElementById(id).currentTime = t), [t, id]);
-const toastText = () => page.evaluate(() => document.getElementById('yt-scroll-skip-toast')?.textContent ?? null);
+// The toast's two lines (value, detail) joined as "value · detail", or just the value.
+const toastText = () =>
+  page.evaluate(() => {
+    const t = document.getElementById('yt-scroll-skip-toast');
+    if (!t) return null;
+    const detail = t.querySelector('.yss-detail');
+    const title = t.querySelector('.yss-title').textContent;
+    return detail.style.display === 'none' ? title : `${title} · ${detail.textContent}`;
+  });
 
 async function wheel(at, dx, dy) {
   await page.mouse.move(at.x, at.y);
@@ -69,11 +77,11 @@ test('scroll up skips forward, scroll down skips back, toast shows position', as
   await setTime(30);
   await gesture(MAIN, -100);
   assert.equal(await time(), 40);
-  assert.equal(await toastText(), '⏩ +10s · 0:40 / 2:00');
+  assert.equal(await toastText(), '+10 s · 0:40 / 2:00');
   await sleep(1100); // let the accumulation window lapse
   await gesture(MAIN, 100);
   assert.equal(await time(), 30);
-  assert.equal(await toastText(), '⏪ −10s · 0:30 / 2:00');
+  assert.equal(await toastText(), '−10 s · 0:30 / 2:00');
 });
 
 test('a burst of wheel events (trackpad momentum) is one skip and never scrolls the page', async () => {
@@ -91,7 +99,7 @@ test('quick repeated skips add up in the toast', async () => {
   await gesture(MAIN, -100);
   await gesture(MAIN, -100);
   assert.equal(await time(), 60);
-  assert.match(await toastText(), /^⏩ \+30s/);
+  assert.match(await toastText(), /^\+30 s · /);
 });
 
 test('forward skips stop short of the end so autoplay is not triggered', async () => {
@@ -112,7 +120,7 @@ test('horizontal swipe while paused steps one frame', async () => {
   await setTime(30);
   await gesture(MAIN, 0, 100);
   assert.ok(Math.abs((await time()) - (30 + 1 / 30)) < 0.01);
-  assert.match(await toastText(), /1 frame/);
+  assert.match(await toastText(), /^Next frame · 0:30 \/ 2:00$/);
 });
 
 test('frame steps stay inside the video and stop short of the end', async () => {
@@ -146,7 +154,7 @@ const apiCalls = () => page.evaluate(() => apiCalls);
 test('Alt+scroll changes volume through YouTube\'s player API (so its slider updates)', async () => {
   await withKey('Alt', () => gesture(MAIN, -100));
   assert.deepEqual(await apiCalls(), [['setVolume', 55]]);
-  assert.equal(await toastText(), '🔊 55%');
+  assert.equal(await toastText(), '55 % · Volume');
   await withKey('Alt', () => gesture(MAIN, 100));
   assert.deepEqual((await apiCalls()).at(-1), ['setVolume', 50]);
   assert.equal(await page.evaluate(() => 'yssResult' in document.getElementById('movie_player').dataset), false);
@@ -173,7 +181,7 @@ test('raising the volume while muted unmutes through the API', async () => {
 test('Shift+scroll changes speed through the API within YouTube\'s range', async () => {
   await withKey('Shift', () => gesture(MAIN, -100));
   assert.deepEqual(await apiCalls(), [['setPlaybackRate', 1.25]]);
-  assert.equal(await toastText(), '⏱ 1.25×');
+  assert.equal(await toastText(), '1.25× · Speed');
 });
 
 test('speeds beyond YouTube\'s range fall back to the <video> element', async () => {
@@ -194,7 +202,7 @@ test('without the player API, volume and speed change the <video> directly', asy
   assert.equal(await video('volume'), 0.55);
   await withKey('Shift', () => gesture(MAIN, -100));
   assert.equal(await video('playbackRate'), 1.25);
-  assert.equal(await toastText(), '⏱ 1.25×');
+  assert.equal(await toastText(), '1.25× · Speed');
 });
 
 test('scrolling the settings menu scrolls the menu, not the video', async () => {
@@ -342,6 +350,26 @@ test('toast sits inside the player and is announced to screen readers', async ()
     return { parent: t.parentElement.id, role: t.getAttribute('role'), live: t.getAttribute('aria-live') };
   });
   assert.deepEqual(info, { parent: 'movie_player', role: 'status', live: 'polite' });
+});
+
+test('toast design: no icons, grey translucent panel with a thin light border', async () => {
+  await gesture(MAIN, -100);
+  const look = await page.evaluate(() => {
+    const t = document.getElementById('yt-scroll-skip-toast');
+    const cs = getComputedStyle(t);
+    return {
+      text: t.textContent,
+      background: cs.backgroundColor,
+      border: `${cs.borderTopWidth} ${cs.borderTopStyle}`,
+      borderColor: cs.borderTopColor,
+    };
+  });
+  assert.doesNotMatch(look.text, /\p{Extended_Pictographic}/u, 'no emoji icons');
+  const [r, g, b, a] = look.background.match(/[\d.]+/g).map(Number);
+  assert.ok(Math.abs(r - g) < 10 && Math.abs(g - b) < 10, `grey background (${look.background})`);
+  assert.ok(a > 0 && a < 1, 'semi-transparent');
+  assert.equal(look.border, '1px solid');
+  assert.ok(look.borderColor.match(/[\d.]+/g).slice(0, 3).every((c) => Number(c) > 200), 'light border');
 });
 
 test('in fullscreen the toast renders inside the fullscreen element', async () => {

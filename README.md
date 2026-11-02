@@ -5,9 +5,9 @@ A small browser extension that lets you skip forward or backward in a YouTube vi
 - Scroll **up** over the video → skip **forward** 10 seconds
 - Scroll **down** over the video → skip **backward** 10 seconds
 
-A toast over the player confirms each skip and shows where you landed, e.g. `⏩ +10s · 4:32 / 12:05`. Quick repeated skips add up (`⏩ +30s`).
+A small panel over the player confirms each skip: the jump in large type (`+10 s`) and where you landed below it (`4:32 / 12:05`). Quick repeated skips add up (`+30 s`). It's a translucent grey panel with a thin light border and system fonts, with no icons.
 
-![The toast over the player after two quick forward skips: "⏩ +20s · 0:52 / 2:00"](docs/toast.png)
+![The toast over the player after two quick forward skips: "+20 s", with "0:52 / 2:00" below](docs/toast.png)
 
 ## Features
 

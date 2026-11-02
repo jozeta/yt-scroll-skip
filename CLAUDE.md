@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 YouTube Scroll to Skip: a small Chrome/Firefox (Manifest V3) extension. Scrolling up over a YouTube
 player skips forward (10 s by default) and scrolling down skips back, with a toast over the player
-(`⏩ +10s · 0:40 / 2:00`). It has settings, a toolbar on/off toggle and modifier controls. Its only
+(`+10 s` above `0:40 / 2:00`). It has settings, a toolbar on/off toggle and modifier controls. Its only
 permission is `storage`. No network, no build step for the extension itself.
 
 ## Running and testing
@@ -62,6 +62,9 @@ permission is `storage`. No network, no build step for the extension itself.
 - Embeds draw their controls in a body-level `#player-controls` layer over `#movie_player`. Only
   over that layer, find the player beneath via `elementsFromPoint`. Never do this for arbitrary
   overlays, because dialogs covering the player must keep their scroll.
+- Toast design (owner's choice): clean Nordic look, two lines (`.yss-title` value, `.yss-detail`
+  detail), translucent grey panel, thin light-grey border, system font stack, no icons and no
+  web fonts (no network).
 - The toast goes inside the player when possible; otherwise into `document.fullscreenElement`
   (fullscreen) or `body`.
 - One gesture means one action: a gesture ends after `GESTURE_GAP_MS` without wheel events

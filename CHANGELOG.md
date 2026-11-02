@@ -6,6 +6,9 @@ Releases follow the project's git tags. Entries were reconstructed from the comm
 
 ## [Unreleased]
 
+- New overlay design: a larger translucent grey panel (about three times the old area) with a thin
+  light-grey border, the value in large type over a quieter detail line, system fonts and no
+  icons. Volume, speed and frame steps say what changed ("55 %" / "Volume", "Next frame").
 - Pressing a modifier mid-scroll (e.g. Alt for volume) now starts a new gesture instead of being
   silently ignored until the scroll stops.
 - Frame steps are clamped like skips: they stay inside the seekable range and stop short of the
