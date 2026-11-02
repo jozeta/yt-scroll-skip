@@ -9,7 +9,7 @@ Releases follow the project's git tags. Entries were reconstructed from the comm
 ## [1.3.0] - 2026-11-02
 
 - Trackpad timeline: sideways swipes over the video scrub through it. A swipe across the whole
-  trackpad covers the whole video (or 75, 50, 25 or 10 %: "Timeline sensitivity"), with the
+  trackpad covers 25 % of the video by default ("Timeline sensitivity": 100, 75, 50, 25 or 10 %), with the
   time and progress shown live. Scrubbing stops when the fingers lift (macOS momentum is
   ignored). "Sideways swipe" can also be set to Skip (10-s skips) or Off (the browser's
   back/forward swipe). Before, sideways swipes were passed to the browser, which rubber-banded

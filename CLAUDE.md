@@ -82,7 +82,7 @@ permission is `storage`. No network, no build step for the extension itself.
 - A 'move' gesture decides what it is once it has moved `MIN_GESTURE_PX`, from its summed dx/dy,
   never from one event (trackpad swipes wobble between axes): vertical = skip; sideways =
   `sidewaysAction()`, from `horizontalSwipe` (owner's choice, default 'timeline'): 'timeline'
-  scrubs (`FULL_SWIPE_PX` ≈ a slow swipe across a MacBook trackpad = `timelineSpan` of the video),
+  scrubs (`FULL_SWIPE_PX` ≈ a slow swipe across a MacBook trackpad = `timelineSpan` percent of the video, default 25),
   'skip' skips, 'off' leaves it to the browser (history swipe). Paused + `modifierControls` steps
   one frame unless in timeline mode. Fingers left→right = forward; `invert` flips it.
 - Scrubbing stops when the fingers lift: macOS momentum has deltaY exactly 0 while touching

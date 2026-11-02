@@ -19,7 +19,7 @@ const DEFAULTS = {
   toastPosition: 'bottom',
   toastSize: 'medium',
   horizontalSwipe: 'timeline',
-  timelineSpan: '100',
+  timelineSpan: '25',
 };
 const GAP = 300; // > GESTURE_GAP_MS, so the next wheel starts a new gesture
 const MAIN = { x: 200, y: 200 }; // over #movie_player's video
@@ -278,7 +278,17 @@ test('trackpad: quick sideways swipes in "skip" mode are three skips', async () 
   approx(await movedBy(() => replay(QUICK_SWIPES)), 30, 'three skips');
 });
 
-test('timeline: a full slow swipe across the trackpad covers the whole video', async () => {
+test('defaults on a fresh install: sideways swipes are a timeline at 25 % per full swipe', async () => {
+  await worker.evaluate(() => chrome.storage.sync.clear()); // nothing stored: defaults.js applies
+  await open();
+  await setTime(30);
+  for (let i = 0; i < 5; i++) await wheel(MAIN, 70, 0); // 350 px = half the trackpad
+  await sleep(GAP);
+  assert.ok(Math.abs((await time()) - 45) < 0.5, `half a swipe = 12.5 % of 2:00 = 15 s, at ${await time()}`);
+});
+
+test('timeline: at 100 %, a full slow swipe across the trackpad covers the whole video', async () => {
+  await setSettings({ timelineSpan: '100' });
   await setTime(0);
   await replay(SLOW_SWIPE);
   assert.equal(await time(), 119.5, 'to the end (minus the end guard)');
@@ -307,6 +317,7 @@ test('timeline: scrubbing stops when the fingers lift (momentum is ignored)', as
 });
 
 test('timeline: swipes scrub both ways, paused or playing, and invert flips it', async () => {
+  await setSettings({ timelineSpan: '100' });
   await setTime(30);
   for (let i = 0; i < 5; i++) await wheel(MAIN, 70, 0); // 350 px = half the trackpad
   await sleep(GAP);

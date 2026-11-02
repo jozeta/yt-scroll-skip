@@ -4,7 +4,7 @@ A small browser extension that lets you skip forward or backward in a YouTube vi
 
 - Scroll **up** over the video → skip **forward** 10 seconds
 - Scroll **down** over the video → skip **backward** 10 seconds
-- On a trackpad, the trackpad is the video's **timeline**: a swipe across the whole trackpad, left→right, covers the whole video. Swipe a little to move a little, right→left to go back.
+- On a trackpad, the trackpad is the video's **timeline**: a swipe across the whole trackpad, left→right, covers a quarter of the video (adjustable up to the whole video). Swipe a little to move a little, right→left to go back.
 
 (Both lengths can be set separately.)
 
@@ -16,7 +16,7 @@ A small panel over the player confirms each skip: how far the video actually mov
 
 - **One gesture = one skip**, even with trackpad momentum scrolling, and quick swipes in a row each count. The page never scrolls underneath the player while you skip. Pressing a modifier mid-scroll (say, Alt for volume) counts as a new gesture, so it isn't swallowed.
 - **No accidental skips**: a gesture has to move at least a little (15 px, a fraction of one wheel notch) before it acts, so a resting finger on a Magic Mouse or a brushed trackpad does nothing.
-- **Trackpad timeline**: sideways swipes scrub through the video, with the time and progress bar shown live. Scrubbing stops when your fingers lift (macOS momentum is ignored). If it feels too sensitive, "Timeline sensitivity" sets how much of the video a full swipe covers: 100 %, 75 %, 50 %, 25 % or 10 %. Up/down swipes still skip. A wobbly swipe counts in its overall direction, not the direction of a single event.
+- **Trackpad timeline**: sideways swipes scrub through the video, with the time and progress bar shown live. Scrubbing stops when your fingers lift (macOS momentum is ignored). "Timeline sensitivity" sets how much of the video a full swipe covers: 100 %, 75 %, 50 %, 25 % (default) or 10 %. Up/down swipes still skip. A wobbly swipe counts in its overall direction, not the direction of a single event.
 - **Settings**: forward and back skip lengths, invert direction, sideways swipe mode and timeline sensitivity, extra controls, overlay position and size, and on/off.
 - **On/off from the toolbar**: click the extension icon. An `OFF` badge shows when it's disabled.
 - **Extra controls** (can be turned off):
@@ -66,7 +66,7 @@ Right-click the toolbar icon → **Options** (or use the **Details → Extension
 | Skip back        | 10      | Seconds per backward scroll gesture (1–600)                          |
 | Invert direction | off     | Scroll down = forward (and right→left = forward). Try it if the default feels backwards, e.g. with macOS natural scrolling |
 | Sideways swipe   | Timeline | Timeline: the trackpad is the video's timeline. Skip: like scrolling. Off: the browser's back/forward swipe |
-| Timeline sensitivity | 100 % | How much of the video one swipe across the whole trackpad covers: 100 %, 75 %, 50 %, 25 % or 10 %. Lower = finer |
+| Timeline sensitivity | 25 % | How much of the video one swipe across the whole trackpad covers: 100 %, 75 %, 50 %, 25 % or 10 %. Lower = finer |
 | Extra controls   | on      | Alt+scroll volume, Shift+scroll speed, sideways swipe while paused for one frame |
 | Overlay position | Bottom  | Bottom, Centre or Top of the player                                  |
 | Overlay size     | Medium  | Extra small (0.65×), Small (0.8×), Medium, Large (1.3×) or Extra large (1.6×) |

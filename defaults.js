@@ -8,7 +8,7 @@ const YSS_DEFAULTS = Object.freeze({
   // Sideways (trackpad) swipes over the player: 'timeline' = scrub (a full swipe = timelineSpan of
   // the video), 'skip' = skip like scrolling, 'off' = the browser's back/forward swipe.
   horizontalSwipe: 'timeline',
-  timelineSpan: '100', // percent of the video one full trackpad swipe covers: '100' | '75' | '50' | '25' | '10'
+  timelineSpan: '25', // percent of the video one full trackpad swipe covers: '100' | '75' | '50' | '25' | '10'
   modifierControls: true, // Alt+scroll = volume, Shift+scroll = speed, sideways swipe while paused = frame step
   toastPosition: 'bottom', // 'bottom' | 'center' | 'top'
   toastSize: 'medium', // 'x-small' | 'small' | 'medium' | 'large' | 'x-large'
