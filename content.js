@@ -22,7 +22,8 @@
   const STREAM_GAP_MS = 50;
   // Timeline mode: a slow swipe across a whole MacBook trackpad scrolls ~700 px sideways.
   const FULL_SWIPE_PX = 700;
-  const TIMELINE_SPANS = { whole: 1, half: 0.5, quarter: 0.25, tenth: 0.1 };
+  // How much of the video a full swipe covers (the "Timeline sensitivity" setting, in percent).
+  const TIMELINE_SPANS = { 100: 1, 75: 0.75, 50: 0.5, 25: 0.25, 10: 0.1 };
   // macOS momentum (after the fingers lift) has deltaY exactly 0, while touching fingers wobble a
   // little vertically. Two such flat events in a row of at least this size mean momentum.
   const MOMENTUM_MIN_PX = 10;

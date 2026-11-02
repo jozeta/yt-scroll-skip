@@ -19,7 +19,7 @@ const DEFAULTS = {
   toastPosition: 'bottom',
   toastSize: 'medium',
   horizontalSwipe: 'timeline',
-  timelineSpan: 'whole',
+  timelineSpan: '100',
 };
 const GAP = 300; // > GESTURE_GAP_MS, so the next wheel starts a new gesture
 const MAIN = { x: 200, y: 200 }; // over #movie_player's video
@@ -285,16 +285,20 @@ test('timeline: a full slow swipe across the trackpad covers the whole video', a
   assert.match(await toastText(), /^\+1:59 · 1:59 \/ 2:00$/);
 });
 
-test('timeline: sensitivity sets how much of the video a full swipe covers', async () => {
-  await setSettings({ timelineSpan: 'half' });
-  await setTime(10);
-  await replay(SLOW_SWIPE);
-  const t = await time();
-  assert.ok(Math.abs(t - (10 + 60 * (713 / 700))) < 2, `half the video: ${t}`);
+test('timeline: sensitivity sets how much of the video a full swipe covers (100–10 %)', async () => {
+  for (const percent of [75, 50, 25, 10]) {
+    await setSettings({ timelineSpan: String(percent) });
+    await setTime(10);
+    await replay(SLOW_SWIPE);
+    const expected = 10 + 120 * (percent / 100) * (713 / 700); // the slow swipe was 713 px
+    const t = await time();
+    assert.ok(Math.abs(t - expected) < 2, `${percent} %: at ${t.toFixed(1)} s, expected ${expected.toFixed(1)}`);
+    await sleep(1100);
+  }
 });
 
 test('timeline: scrubbing stops when the fingers lift (momentum is ignored)', async () => {
-  await setSettings({ timelineSpan: 'tenth' }); // 12 s per full swipe on this 2-minute video
+  await setSettings({ timelineSpan: '10' }); // 12 s per full swipe on this 2-minute video
   await setTime(30);
   await replay(FIRST_QUICK_SWIPE);
   const moved = (await time()) - 30;
@@ -542,7 +546,7 @@ test('options page saves checkbox, number and select changes', async () => {
   await page.press('#skipBack', 'Tab');
   await page.click('#invert');
   await page.selectOption('#horizontalSwipe', 'skip');
-  await page.selectOption('#timelineSpan', 'quarter');
+  await page.selectOption('#timelineSpan', '75');
   await page.fill('#skipForward', '25');
   await page.press('#skipForward', 'Tab'); // fires "change"
   await page.waitForTimeout(150);
@@ -553,7 +557,7 @@ test('options page saves checkbox, number and select changes', async () => {
   assert.equal(saved.toastPosition, 'top');
   assert.equal(saved.toastSize, 'x-large');
   assert.equal(saved.horizontalSwipe, 'skip');
-  assert.equal(saved.timelineSpan, 'quarter');
+  assert.equal(saved.timelineSpan, '75');
   assert.equal(await page.textContent('#status'), 'Saved');
 });
 
