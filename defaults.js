@@ -7,5 +7,5 @@ const YSS_DEFAULTS = Object.freeze({
   invert: false, // true: scroll down = forward (for people who find the default backwards)
   modifierControls: true, // Alt+scroll = volume, Shift+scroll = speed, sideways swipe while paused = frame step
   toastPosition: 'bottom', // 'bottom' | 'center' | 'top'
-  toastSize: 'medium', // 'small' | 'medium' | 'large'
+  toastSize: 'medium', // 'x-small' | 'small' | 'medium' | 'large' | 'x-large'
 });

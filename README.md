@@ -65,7 +65,7 @@ Right-click the toolbar icon → **Options** (or use the **Details → Extension
 | Invert direction | off     | Scroll down = forward. Try it if the default feels backwards, e.g. with macOS natural scrolling |
 | Extra controls   | on      | Alt+scroll volume, Shift+scroll speed, sideways swipe while paused for one frame |
 | Overlay position | Bottom  | Bottom, Centre or Top of the player                                  |
-| Overlay size     | Medium  | Small (0.8×), Medium or Large (1.3×)                                 |
+| Overlay size     | Medium  | Extra small (0.65×), Small (0.8×), Medium, Large (1.3×) or Extra large (1.6×) |
 
 An invalid skip length (outside 1–600) is rejected and the previous value is kept. If you used 1.2.x, your old "seconds per skip" is carried over to both directions when the extension updates.
 

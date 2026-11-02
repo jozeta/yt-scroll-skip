@@ -393,7 +393,7 @@ test('options page shows the stored settings', async () => {
 test('options page saves checkbox, number and select changes', async () => {
   await openOptions();
   await page.selectOption('#toastPosition', 'top');
-  await page.selectOption('#toastSize', 'large');
+  await page.selectOption('#toastSize', 'x-large');
   await page.fill('#skipBack', '5');
   await page.press('#skipBack', 'Tab');
   await page.click('#invert');
@@ -405,7 +405,7 @@ test('options page saves checkbox, number and select changes', async () => {
   assert.equal(saved.skipForward, 25);
   assert.equal(saved.skipBack, 5);
   assert.equal(saved.toastPosition, 'top');
-  assert.equal(saved.toastSize, 'large');
+  assert.equal(saved.toastSize, 'x-large');
   assert.equal(await page.textContent('#status'), 'Saved');
 });
 
@@ -474,6 +474,12 @@ test('overlay position and size settings', async () => {
   const small = await box();
   assert.ok(Math.abs(small.top - small.bottom) < 2, 'centred');
   assert.ok(Math.abs(small.width / medium.width - 0.8) < 0.02, 'small is 0.8×');
+
+  for (const [size, scale] of [['x-small', 0.65], ['x-large', 1.6]]) {
+    await setSettings({ toastSize: size });
+    await gesture(MAIN, -100);
+    assert.ok(Math.abs((await box()).width / medium.width - scale) < 0.02, `${size} is ${scale}×`);
+  }
 });
 
 test('toast design: no icons, grey translucent panel with a thin light border', async () => {

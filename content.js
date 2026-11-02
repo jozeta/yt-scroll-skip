@@ -23,7 +23,7 @@
     center: { top: '50%', bottom: 'auto', translateY: '-50%', origin: 'center' },
     top: { top: '12%', bottom: 'auto', translateY: '0', origin: 'top center' },
   };
-  const TOAST_SCALES = { small: 0.8, medium: 1, large: 1.3 };
+  const TOAST_SCALES = { 'x-small': 0.65, small: 0.8, medium: 1, large: 1.3, 'x-large': 1.6 };
 
   const PLAYER_SELECTOR = '#movie_player, #shorts-player, .html5-video-player';
   // Scrollable menus inside the player (quality list, speed list…): their scroll is theirs.
