@@ -286,6 +286,13 @@
     showToast(player, direction > 0 ? 'Next frame' : 'Previous frame', position(video), progressOf(video));
   }
 
+  // Skip direction from a movement: up or fingers left→right = forward, unless inverted.
+  // The larger axis wins, so it works for one event and for a whole (wobbly) gesture alike.
+  function skipDirection(dx, dy) {
+    const forward = Math.abs(dx) > Math.abs(dy) ? dx > 0 : dy < 0;
+    return forward !== settings.invert ? 1 : -1;
+  }
+
   // Decide what this wheel event means, or null to let the page handle it.
   function classify(e, video) {
     const horizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY);
@@ -300,13 +307,17 @@
       return { action: 'volume', direction: e.deltaY < 0 ? 1 : -1, delta: e.deltaY };
     }
     if (horizontal) {
-      // While playing, sideways swipes stay the browser's (history back/forward).
-      if (!settings.modifierControls || !video.paused) return null;
-      return { action: 'frame', direction: e.deltaX > 0 ? 1 : -1, delta: e.deltaX };
+      // Paused: one frame per swipe (an extra control).
+      if (video.paused && settings.modifierControls) {
+        return { action: 'frame', direction: e.deltaX > 0 ? 1 : -1, delta: e.deltaX };
+      }
+      // Trackpads: fingers left→right skips forward. Over the player this replaces the browser's
+      // back/forward swipe; with the setting off, sideways swipes stay the browser's.
+      if (!settings.horizontalSkip || !e.deltaX) return null;
+      return { action: 'skip', direction: skipDirection(e.deltaX, 0), delta: e.deltaX };
     }
     if (!e.deltaY) return null;
-    const up = e.deltaY < 0;
-    return { action: 'skip', direction: up !== settings.invert ? 1 : -1, delta: e.deltaY };
+    return { action: 'skip', direction: skipDirection(0, e.deltaY), delta: e.deltaY };
   }
 
   function handleWheel(e) {
@@ -331,17 +342,20 @@
     // Alt pressed during a scroll), so pressing a modifier is never silently swallowed.
     const now = Date.now();
     if (now - lastWheel > GESTURE_GAP_MS || intent.action !== gesture.action) {
-      gesture = { action: intent.action, distance: 0, done: false };
+      gesture = { action: intent.action, distance: 0, sumX: 0, sumY: 0, done: false };
     }
     lastWheel = now;
     if (gesture.done) return;
     // Act once the gesture has moved far enough; tiny accidental touches never add up to it.
     const unit = e.deltaMode === 1 ? LINE_PX : e.deltaMode === 2 ? PAGE_PX : 1;
     gesture.distance += Math.abs(intent.delta) * unit;
+    gesture.sumX += e.deltaX * unit;
+    gesture.sumY += e.deltaY * unit;
     if (gesture.distance < MIN_GESTURE_PX) return;
     gesture.done = true;
 
-    if (intent.action === 'skip') skip(player, video, intent.direction, now);
+    // A trackpad swipe wobbles between axes event by event; its overall direction decides.
+    if (intent.action === 'skip') skip(player, video, skipDirection(gesture.sumX, gesture.sumY), now);
     else if (intent.action === 'volume') changeVolume(player, video, intent.direction);
     else if (intent.action === 'speed') changeSpeed(player, video, intent.direction);
     else stepFrame(player, video, intent.direction);

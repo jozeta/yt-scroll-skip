@@ -18,6 +18,7 @@ const DEFAULTS = {
   modifierControls: true,
   toastPosition: 'bottom',
   toastSize: 'medium',
+  horizontalSkip: true,
 };
 const GAP = 300; // > GESTURE_GAP_MS, so the next wheel starts a new gesture
 const MAIN = { x: 200, y: 200 }; // over #movie_player's video
@@ -184,9 +185,53 @@ test('settings from 1.2.x (one skipSeconds) carry over to both directions on upd
   assert.deepEqual(after, { skipForward: 20, skipBack: 20, invert: true });
 });
 
-test('horizontal swipe while playing is passed through', async () => {
+const play = () => page.evaluate(() => document.getElementById('main').play());
+// The video keeps playing during a gesture, so measure how far one gesture moved it.
+async function movedBy(fn) {
+  const before = await time();
+  const started = Date.now();
+  await fn();
+  return (await time()) - before - (Date.now() - started) / 1000; // minus normal playback
+}
+const approx = (actual, expected, label) =>
+  assert.ok(Math.abs(actual - expected) < 0.75, `${label}: moved ${actual.toFixed(2)} s, expected ${expected}`);
+
+test('sideways trackpad swipe while playing skips (left→right forward, right→left back)', async () => {
   await setTime(30);
-  await page.evaluate(() => document.getElementById('main').play());
+  await play();
+  const swipe = (dx) => async () => {
+    for (let i = 0; i < 8; i++) await wheel(MAIN, dx, 0); // with momentum
+    await sleep(GAP);
+  };
+  approx(await movedBy(swipe(12)), 10, 'left→right');
+  assert.ok((await page.evaluate(() => wheelLog)).every(Boolean), 'all cancelled: no rubber-band or history swipe');
+  assert.match(await toastText(), /^\+10 s/);
+  await sleep(1100);
+  approx(await movedBy(swipe(-12)), -10, 'right→left');
+});
+
+test('a wobbly, mostly sideways swipe is one skip in its overall direction', async () => {
+  await setTime(30);
+  await play();
+  const moved = await movedBy(async () => {
+    // The second event is mostly vertical (down = back) and crosses the threshold.
+    for (const [dx, dy] of [[10, 3], [4, 9], [12, 2], [8, 8], [9, 1]]) await wheel(MAIN, dx, dy);
+    await sleep(GAP);
+  });
+  approx(moved, 10, 'forward, once');
+});
+
+test('invert direction also flips sideways swipes', async () => {
+  await setSettings({ invert: true });
+  await setTime(30);
+  await play();
+  approx(await movedBy(() => gesture(MAIN, 0, 100)), -10, 'inverted: left→right goes back');
+});
+
+test('with "sideways swipe skips" off, sideways swipes while playing are passed through', async () => {
+  await setSettings({ horizontalSkip: false });
+  await setTime(30);
+  await play();
   await gesture(MAIN, 0, 100);
   assert.deepEqual(await page.evaluate(() => wheelLog), [false]);
   assert.ok((await time()) < 39, 'no skip');
@@ -397,6 +442,7 @@ test('options page saves checkbox, number and select changes', async () => {
   await page.fill('#skipBack', '5');
   await page.press('#skipBack', 'Tab');
   await page.click('#invert');
+  await page.click('#horizontalSkip');
   await page.fill('#skipForward', '25');
   await page.press('#skipForward', 'Tab'); // fires "change"
   await page.waitForTimeout(150);
@@ -406,6 +452,7 @@ test('options page saves checkbox, number and select changes', async () => {
   assert.equal(saved.skipBack, 5);
   assert.equal(saved.toastPosition, 'top');
   assert.equal(saved.toastSize, 'x-large');
+  assert.equal(saved.horizontalSkip, false);
   assert.equal(await page.textContent('#status'), 'Saved');
 });
 

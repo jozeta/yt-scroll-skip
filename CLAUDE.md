@@ -34,9 +34,10 @@ permission is `storage`. No network, no build step for the extension itself.
   `document_idle`. The background has both `service_worker` (Chrome) and `scripts` (Firefox),
   which is deliberate. `browser_specific_settings.gecko` is for Firefox.
 - `defaults.js`: `YSS_DEFAULTS` (`enabled`, `skipForward`, `skipBack`, `invert`,
-  `modifierControls`, `toastPosition`, `toastSize`), shared by `content.js` and `options.js`.
-  Settings live in `chrome.storage.sync`. 1.2.x stored one `skipSeconds`; `migrateSettings()` in
-  `background.js` copies it to both lengths on update. Keep migrations when renaming settings.
+  `horizontalSkip`, `modifierControls`, `toastPosition`, `toastSize`), shared by `content.js`
+  and `options.js`. Settings live in `chrome.storage.sync`. 1.2.x stored one `skipSeconds`;
+  `migrateSettings()` in `background.js` copies it to both lengths on update. Keep migrations
+  when renaming settings.
 - `content.js`: tuning constants at the top (`GESTURE_GAP_MS`, `ACCUMULATE_MS`,
   `END_GUARD_SECONDS`, `MIN_GESTURE_PX`, steps, `TOAST_POSITIONS`/`TOAST_SCALES`). A
   capture-phase `wheel` listener: `findTarget` (player and video under the cursor) → `classify`
@@ -76,8 +77,11 @@ permission is `storage`. No network, no build step for the extension itself.
   (handles trackpad momentum), or when the classified action changes (a modifier pressed
   mid-scroll). Events inside a gesture are still `preventDefault()`ed, so the page
   never scrolls under the player.
-- Horizontal swipes are passed through while playing (history swipe). While paused they step one
-  frame, if `modifierControls` is on.
+- Horizontal swipes over the player skip while playing (`horizontalSkip`, default on, owner's
+  choice: fingers left→right = forward). With it off they're passed through (history swipe).
+  While paused they step one frame, if `modifierControls` is on. Skip direction comes from the
+  whole gesture's summed dx/dy (`skipDirection`), never from the single event that crossed
+  `MIN_GESTURE_PX`, because trackpad swipes wobble between axes.
 - Clamp seeks and frame steps (both go through `seek()`) to `video.seekable` (live/DVR), and
   stop forward moves `END_GUARD_SECONDS` before the end (no autoplay).
 - Only the `storage` permission (approved by the owner); never add network access or other

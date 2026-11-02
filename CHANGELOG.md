@@ -8,6 +8,11 @@ Releases follow the project's git tags. Entries were reconstructed from the comm
 
 ## [1.3.0] - 2026-11-02
 
+- Sideways trackpad swipes over the video skip (left→right forward, right→left back), with a
+  "Sideways swipe skips" setting. Before, they were passed to the browser, which rubber-banded
+  the page or went back a page.
+- A wobbly trackpad swipe skips in its overall direction; before, one mostly-vertical event in a
+  sideways swipe could make it skip the wrong way.
 - Separate forward and back skip lengths (settings from 1.2.x carry over to both).
 - Overlay position (bottom, centre, top) and size (extra small, small, medium, large, extra
   large) settings.

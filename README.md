@@ -4,6 +4,7 @@ A small browser extension that lets you skip forward or backward in a YouTube vi
 
 - Scroll **up** over the video → skip **forward** 10 seconds
 - Scroll **down** over the video → skip **backward** 10 seconds
+- On a trackpad, swipe **left→right** over the video → skip **forward**, **right→left** → skip **backward**
 
 (Both lengths can be set separately.)
 
@@ -15,7 +16,8 @@ A small panel over the player confirms each skip: how far the video actually mov
 
 - **One gesture = one skip**, even with trackpad momentum scrolling. The page never scrolls underneath the player while you skip. Pressing a modifier mid-scroll (say, Alt for volume) counts as a new gesture, so it isn't swallowed.
 - **No accidental skips**: a gesture has to move at least a little (15 px, a fraction of one wheel notch) before it acts, so a resting finger on a Magic Mouse or a brushed trackpad does nothing.
-- **Settings**: forward and back skip lengths, invert direction, extra controls, overlay position and size, and on/off.
+- **Trackpad friendly**: up/down and sideways swipes both skip. A wobbly swipe counts in its overall direction, not the direction of a single event.
+- **Settings**: forward and back skip lengths, invert direction, sideways swipe skipping, extra controls, overlay position and size, and on/off.
 - **On/off from the toolbar**: click the extension icon. An `OFF` badge shows when it's disabled.
 - **Extra controls** (can be turned off):
   - Alt/Option + scroll: volume
@@ -30,7 +32,7 @@ A small panel over the player confirms each skip: how far the video actually mov
   - Ads can't be skipped through.
   - Scrolling the player's quality/speed menus scrolls the menu.
   - Hover previews in the feed are ignored.
-  - Sideways swipes while playing still go back/forward in history.
+  - Outside the video, two-finger back/forward swipes still navigate (or everywhere, with "Sideways swipe skips" off).
   - Forward skips stop just before the end, so they don't trigger autoplay of the next video.
 - **Accessible**: the toast is announced to screen readers (`role="status"`).
 - **Private**: the only permission is `storage` (to save your settings). No tracking and no network requests.
@@ -62,7 +64,8 @@ Right-click the toolbar icon → **Options** (or use the **Details → Extension
 | Enabled          | on      | Same as clicking the toolbar icon                                    |
 | Skip forward     | 10      | Seconds per forward scroll gesture (1–600)                           |
 | Skip back        | 10      | Seconds per backward scroll gesture (1–600)                          |
-| Invert direction | off     | Scroll down = forward. Try it if the default feels backwards, e.g. with macOS natural scrolling |
+| Invert direction | off     | Scroll down = forward (and right→left = forward). Try it if the default feels backwards, e.g. with macOS natural scrolling |
+| Sideways swipe skips | on  | Sideways trackpad swipes over the video skip. Off: they stay the browser's back/forward swipe |
 | Extra controls   | on      | Alt+scroll volume, Shift+scroll speed, sideways swipe while paused for one frame |
 | Overlay position | Bottom  | Bottom, Centre or Top of the player                                  |
 | Overlay size     | Medium  | Extra small (0.65×), Small (0.8×), Medium, Large (1.3×) or Extra large (1.6×) |
