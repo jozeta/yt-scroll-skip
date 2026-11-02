@@ -15,6 +15,18 @@
   // A gesture only acts once it has moved this far (in pixels), so a resting finger on a Magic
   // Mouse or a brushed trackpad doesn't skip. One mouse-wheel notch is ~100 px.
   const MIN_GESTURE_PX = 15;
+  // Trackpads send a steady stream of wheel events (every ~8 ms, measured on a MacBook). When a
+  // steady stream pauses for STREAM_GAP_MS, new fingers have landed, even though macOS momentum
+  // from the last swipe hadn't finished (quick swipes in a row are only ~75–90 ms apart).
+  const STREAM_INTERVAL_MS = 20;
+  const STREAM_GAP_MS = 50;
+  // Timeline mode: a slow swipe across a whole MacBook trackpad scrolls ~700 px sideways.
+  const FULL_SWIPE_PX = 700;
+  const TIMELINE_SPANS = { whole: 1, half: 0.5, quarter: 0.25, tenth: 0.1 };
+  // macOS momentum (after the fingers lift) has deltaY exactly 0, while touching fingers wobble a
+  // little vertically. Two such flat events in a row of at least this size mean momentum.
+  const MOMENTUM_MIN_PX = 10;
+  const SEEK_INTERVAL_MS = 50; // at most one real seek per this while scrubbing
   const LINE_PX = 16; // deltaMode 1 (lines, e.g. Firefox mouse wheels)
   const PAGE_PX = 800; // deltaMode 2 (pages)
   // Overlay placement and scale, chosen on the options page.
@@ -45,8 +57,13 @@
   });
 
   let lastWheel = 0;
-  // The current gesture: its action, how far it has moved, and whether it has acted yet.
-  let gesture = { action: null, distance: 0, done: true };
+  let lastInterval = Infinity; // time between the last two wheel events we handled
+  // The current gesture: what kind it is ('move', 'volume', 'speed'), how far it has moved, what it
+  // decided to do once it moved far enough (skip, frame, scrub), and whether it's finished.
+  let gesture = { kind: null, done: true };
+  let seekTimer = null;
+  let pendingSeek = null;
+  let lastSeekAt = 0;
   // Recent skips in one direction on one video, added up for the toast.
   let accumulated = { total: 0, direction: 0, at: 0, video: null, src: '' };
   let hideTimer = null;
@@ -172,9 +189,10 @@
     }, 900);
   }
 
-  // Clamp to the seekable range: [0, duration] for normal videos, the DVR window for live.
-  // Used by skips and frame steps alike.
-  function seek(video, deltaSeconds) {
+  // Clamp a seek target to the seekable range: [0, duration] for normal videos, the DVR window
+  // for live. Moving forward stops END_GUARD_SECONDS before the end (no autoplay), but the guard
+  // never moves the video backwards from where it was (`from`).
+  function clampTarget(video, from, target) {
     const { seekable } = video;
     let start = 0;
     let end = Number.isFinite(video.duration) ? video.duration : Infinity;
@@ -182,12 +200,30 @@
       start = seekable.start(0);
       end = seekable.end(seekable.length - 1);
     }
-    let target = video.currentTime + deltaSeconds;
-    if (deltaSeconds > 0 && Number.isFinite(video.duration)) {
-      // Don't run into the end (and autoplay); never move backwards because of the guard.
-      target = Math.max(Math.min(target, video.duration - END_GUARD_SECONDS), video.currentTime);
+    if (target > from && Number.isFinite(video.duration)) {
+      target = Math.max(Math.min(target, video.duration - END_GUARD_SECONDS), from);
     }
-    video.currentTime = Math.min(Math.max(target, start), end);
+    return Math.min(Math.max(target, start), end);
+  }
+
+  // Used by skips and frame steps alike.
+  function seek(video, deltaSeconds) {
+    video.currentTime = clampTarget(video, video.currentTime, video.currentTime + deltaSeconds);
+  }
+
+  // While scrubbing, wheel events arrive every ~8 ms; seeking that often makes YouTube fetch and
+  // decode constantly. Seek at most every SEEK_INTERVAL_MS, always ending on the latest target.
+  function scheduleSeek(video, target) {
+    pendingSeek = { video, target };
+    if (seekTimer) return;
+    const run = () => {
+      seekTimer = null;
+      lastSeekAt = Date.now();
+      pendingSeek.video.currentTime = pendingSeek.target;
+    };
+    const wait = SEEK_INTERVAL_MS - (Date.now() - lastSeekAt);
+    if (wait <= 0) run();
+    else seekTimer = setTimeout(run, wait);
   }
 
   function position(video) {
@@ -199,6 +235,32 @@
   // Where the playhead is in the video (0–1), or null for live streams.
   function progressOf(video) {
     return Number.isFinite(video.duration) && video.duration > 0 ? video.currentTime / video.duration : null;
+  }
+
+  // The length the timeline maps onto: the video, or the DVR window of a live stream.
+  function timelineLength(video) {
+    if (Number.isFinite(video.duration) && video.duration > 0) return video.duration;
+    const { seekable } = video;
+    if (seekable && seekable.length) return seekable.end(seekable.length - 1) - seekable.start(0);
+    return 0;
+  }
+
+  // Timeline mode: sideways movement maps onto the whole video (FULL_SWIPE_PX = timelineSpan of it).
+  function scrub(player, video, px) {
+    gesture.offsetPx += px;
+    const length = timelineLength(video);
+    if (!length) return;
+    const span = TIMELINE_SPANS[settings.timelineSpan] || 1;
+    const seconds = ((settings.invert ? -1 : 1) * gesture.offsetPx * length * span) / FULL_SWIPE_PX;
+    const target = clampTarget(video, gesture.base, gesture.base + seconds);
+    scheduleSeek(video, target);
+
+    const moved = target - gesture.base;
+    const at = Number.isFinite(video.duration)
+      ? `${formatTime(target)} / ${formatTime(video.duration)}`
+      : formatTime(target);
+    const progress = Number.isFinite(video.duration) && video.duration > 0 ? target / video.duration : null;
+    showToast(player, `${moved < 0 ? '−' : '+'}${formatTime(Math.abs(moved))}`, at, progress);
   }
 
   function formatSeconds(seconds) {
@@ -287,37 +349,35 @@
   }
 
   // Skip direction from a movement: up or fingers left→right = forward, unless inverted.
-  // The larger axis wins, so it works for one event and for a whole (wobbly) gesture alike.
+  // The larger axis wins, so a whole (wobbly) gesture decides, not a single event.
   function skipDirection(dx, dy) {
     const forward = Math.abs(dx) > Math.abs(dy) ? dx > 0 : dy < 0;
     return forward !== settings.invert ? 1 : -1;
   }
 
-  // Decide what this wheel event means, or null to let the page handle it.
-  function classify(e, video) {
-    const horizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+  // What a sideways gesture does here, or null to leave it to the browser (back/forward swipe).
+  function sidewaysAction(video) {
+    if (settings.horizontalSwipe === 'timeline') return 'scrub';
+    if (video.paused && settings.modifierControls) return 'frame';
+    if (settings.horizontalSwipe === 'skip') return 'skip';
+    return null;
+  }
+
+  // What kind of gesture this wheel event belongs to, or null to let the page handle it.
+  // 'move' (no modifier) becomes a skip, frame step or scrub once its direction is clear.
+  function classify(e) {
     // Shift+wheel turns into a horizontal scroll on most platforms, so read whichever axis moved.
     if (e.shiftKey) {
       if (!settings.modifierControls) return null;
       const d = e.deltaY || e.deltaX;
-      return d ? { action: 'speed', direction: d < 0 ? 1 : -1, delta: d } : null;
+      return d ? { kind: 'speed', direction: d < 0 ? 1 : -1, delta: d } : null;
     }
     if (e.altKey) {
-      if (!settings.modifierControls || horizontal || !e.deltaY) return null;
-      return { action: 'volume', direction: e.deltaY < 0 ? 1 : -1, delta: e.deltaY };
+      if (!settings.modifierControls || Math.abs(e.deltaX) > Math.abs(e.deltaY) || !e.deltaY) return null;
+      return { kind: 'volume', direction: e.deltaY < 0 ? 1 : -1, delta: e.deltaY };
     }
-    if (horizontal) {
-      // Paused: one frame per swipe (an extra control).
-      if (video.paused && settings.modifierControls) {
-        return { action: 'frame', direction: e.deltaX > 0 ? 1 : -1, delta: e.deltaX };
-      }
-      // Trackpads: fingers left→right skips forward. Over the player this replaces the browser's
-      // back/forward swipe; with the setting off, sideways swipes stay the browser's.
-      if (!settings.horizontalSkip || !e.deltaX) return null;
-      return { action: 'skip', direction: skipDirection(e.deltaX, 0), delta: e.deltaX };
-    }
-    if (!e.deltaY) return null;
-    return { action: 'skip', direction: skipDirection(0, e.deltaY), delta: e.deltaY };
+    if (!e.deltaX && !e.deltaY) return null;
+    return { kind: 'move' };
   }
 
   function handleWheel(e) {
@@ -330,35 +390,86 @@
     const { player, video } = found;
     if (isAdShowing(player)) return;
 
-    const intent = classify(e, video);
+    const intent = classify(e);
     if (!intent) return;
+
+    // A new gesture starts after a quiet gap, when a steady (trackpad) stream pauses briefly (new
+    // fingers), or when the kind changes (e.g. Alt pressed mid-scroll).
+    const now = Date.now();
+    const gap = now - lastWheel;
+    const fresh =
+      gap > GESTURE_GAP_MS ||
+      (lastInterval <= STREAM_INTERVAL_MS && gap > STREAM_GAP_MS) ||
+      intent.kind !== gesture.kind;
+    const sideways = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+    // A sideways start we don't handle stays the browser's (back/forward swipe while playing).
+    if (fresh && intent.kind === 'move' && sideways && !sidewaysAction(video)) return;
 
     // Every event we've claimed is consumed, including the ones inside a gesture that don't
     // act, so the page never scrolls underneath.
     e.preventDefault();
     e.stopPropagation();
-
-    // A new gesture starts after a quiet gap, or when the action changes mid-gesture (e.g.
-    // Alt pressed during a scroll), so pressing a modifier is never silently swallowed.
-    const now = Date.now();
-    if (now - lastWheel > GESTURE_GAP_MS || intent.action !== gesture.action) {
-      gesture = { action: intent.action, distance: 0, sumX: 0, sumY: 0, done: false };
-    }
+    lastInterval = gap;
     lastWheel = now;
+    if (fresh) {
+      gesture = { kind: intent.kind, distance: 0, sumX: 0, sumY: 0, action: null, done: false };
+      gesture.wobbled = false; // touching fingers wobble vertically; momentum doesn't
+      gesture.held = 0; // a flat event held back until we know it isn't momentum
+    }
     if (gesture.done) return;
-    // Act once the gesture has moved far enough; tiny accidental touches never add up to it.
-    const unit = e.deltaMode === 1 ? LINE_PX : e.deltaMode === 2 ? PAGE_PX : 1;
-    gesture.distance += Math.abs(intent.delta) * unit;
-    gesture.sumX += e.deltaX * unit;
-    gesture.sumY += e.deltaY * unit;
-    if (gesture.distance < MIN_GESTURE_PX) return;
-    gesture.done = true;
 
-    // A trackpad swipe wobbles between axes event by event; its overall direction decides.
-    if (intent.action === 'skip') skip(player, video, skipDirection(gesture.sumX, gesture.sumY), now);
-    else if (intent.action === 'volume') changeVolume(player, video, intent.direction);
-    else if (intent.action === 'speed') changeSpeed(player, video, intent.direction);
-    else stepFrame(player, video, intent.direction);
+    const unit = e.deltaMode === 1 ? LINE_PX : e.deltaMode === 2 ? PAGE_PX : 1;
+    const dx = e.deltaX * unit;
+    const dy = e.deltaY * unit;
+
+    if (intent.kind !== 'move') {
+      // Volume and speed: one step per gesture, once it has moved far enough.
+      gesture.distance += Math.abs(intent.delta) * unit;
+      if (gesture.distance < MIN_GESTURE_PX) return;
+      gesture.done = true;
+      if (intent.kind === 'volume') changeVolume(player, video, intent.direction);
+      else changeSpeed(player, video, intent.direction);
+      return;
+    }
+
+    if (gesture.action === 'scrub') {
+      // Stop when the fingers lift: hold back a flat (dy = 0) event; a second one in a row is
+      // momentum, so drop both and end the gesture. Otherwise apply what was held.
+      if (dy !== 0) gesture.wobbled = true;
+      const flat = gesture.wobbled && dy === 0 && Math.abs(dx) >= MOMENTUM_MIN_PX;
+      if (flat && gesture.held) {
+        gesture.done = true;
+        return;
+      }
+      if (flat) {
+        gesture.held = dx;
+        return;
+      }
+      const px = gesture.held + dx;
+      gesture.held = 0;
+      scrub(player, video, px);
+      return;
+    }
+
+    // Not decided yet: wait until the gesture has moved far enough (tiny accidental touches never
+    // do), then let its overall direction decide. A trackpad swipe wobbles between axes event by
+    // event, so no single event decides.
+    gesture.sumX += dx;
+    gesture.sumY += dy;
+    if (dy !== 0) gesture.wobbled = true;
+    if (Math.max(Math.abs(gesture.sumX), Math.abs(gesture.sumY)) < MIN_GESTURE_PX) return;
+    const horizontal = Math.abs(gesture.sumX) > Math.abs(gesture.sumY);
+    gesture.action = horizontal ? sidewaysAction(video) : 'skip';
+
+    if (gesture.action === 'scrub') {
+      gesture.base = video.currentTime;
+      gesture.offsetPx = 0;
+      scrub(player, video, gesture.sumX);
+      return;
+    }
+    gesture.done = true;
+    if (gesture.action === 'skip') skip(player, video, skipDirection(gesture.sumX, gesture.sumY), now);
+    else if (gesture.action === 'frame') stepFrame(player, video, gesture.sumX > 0 ? 1 : -1);
   }
 
   // Use capture phase so we intercept before YouTube's own handlers

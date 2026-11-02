@@ -34,10 +34,10 @@ permission is `storage`. No network, no build step for the extension itself.
   `document_idle`. The background has both `service_worker` (Chrome) and `scripts` (Firefox),
   which is deliberate. `browser_specific_settings.gecko` is for Firefox.
 - `defaults.js`: `YSS_DEFAULTS` (`enabled`, `skipForward`, `skipBack`, `invert`,
-  `horizontalSkip`, `modifierControls`, `toastPosition`, `toastSize`), shared by `content.js`
-  and `options.js`. Settings live in `chrome.storage.sync`. 1.2.x stored one `skipSeconds`;
-  `migrateSettings()` in `background.js` copies it to both lengths on update. Keep migrations
-  when renaming settings.
+  `horizontalSwipe`, `timelineSpan`, `modifierControls`, `toastPosition`, `toastSize`), shared
+  by `content.js` and `options.js`. Settings live in `chrome.storage.sync`. 1.2.x stored one
+  `skipSeconds`; `migrateSettings()` in `background.js` copies it to both lengths on update.
+  Keep migrations when renaming settings.
 - `content.js`: tuning constants at the top (`GESTURE_GAP_MS`, `ACCUMULATE_MS`,
   `END_GUARD_SECONDS`, `MIN_GESTURE_PX`, steps, `TOAST_POSITIONS`/`TOAST_SCALES`). A
   capture-phase `wheel` listener: `findTarget` (player and video under the cursor) → `classify`
@@ -73,16 +73,24 @@ permission is `storage`. No network, no build step for the extension itself.
   when none), and the running total resets when the video (`currentSrc`) changes.
 - The toast goes inside the player when possible; otherwise into `document.fullscreenElement`
   (fullscreen) or `body`.
-- One gesture means one action: a gesture ends after `GESTURE_GAP_MS` without wheel events
-  (handles trackpad momentum), or when the classified action changes (a modifier pressed
-  mid-scroll). Events inside a gesture are still `preventDefault()`ed, so the page
-  never scrolls under the player.
-- Horizontal swipes over the player skip while playing (`horizontalSkip`, default on, owner's
-  choice: fingers left→right = forward). With it off they're passed through (history swipe).
-  While paused they step one frame, if `modifierControls` is on. Skip direction comes from the
-  whole gesture's summed dx/dy (`skipDirection`), never from the single event that crossed
-  `MIN_GESTURE_PX`, because trackpad swipes wobble between axes.
-- Clamp seeks and frame steps (both go through `seek()`) to `video.seekable` (live/DVR), and
-  stop forward moves `END_GUARD_SECONDS` before the end (no autoplay).
+- One gesture means one action (except timeline scrubbing): a gesture ends after
+  `GESTURE_GAP_MS` without wheel events, when a steady trackpad stream (≤ `STREAM_INTERVAL_MS`
+  apart) pauses for `STREAM_GAP_MS` (new fingers land while macOS momentum is still running;
+  measured: quick swipes are 75–90 ms apart), or when the kind changes (a modifier pressed
+  mid-scroll). Events inside a gesture are still `preventDefault()`ed, so the page never scrolls
+  under the player.
+- A 'move' gesture decides what it is once it has moved `MIN_GESTURE_PX`, from its summed dx/dy,
+  never from one event (trackpad swipes wobble between axes): vertical = skip; sideways =
+  `sidewaysAction()`, from `horizontalSwipe` (owner's choice, default 'timeline'): 'timeline'
+  scrubs (`FULL_SWIPE_PX` ≈ a slow swipe across a MacBook trackpad = `timelineSpan` of the video),
+  'skip' skips, 'off' leaves it to the browser (history swipe). Paused + `modifierControls` steps
+  one frame unless in timeline mode. Fingers left→right = forward; `invert` flips it.
+- Scrubbing stops when the fingers lift: macOS momentum has deltaY exactly 0 while touching
+  fingers wobble, so after any wobble, two flat events ≥ `MOMENTUM_MIN_PX` in a row end the
+  gesture (the first is held back, so nothing leaks). Seeks while scrubbing are throttled to one
+  per `SEEK_INTERVAL_MS`. Tune against `test/trackpad-recording.json` (a real MacBook recording
+  the tests replay); re-record with a page like it if behaviour on real hardware changes.
+- Clamp skips, frame steps and scrubs (all go through `clampTarget()`) to `video.seekable`
+  (live/DVR), and stop forward moves `END_GUARD_SECONDS` before the end (no autoplay).
 - Only the `storage` permission (approved by the owner); never add network access or other
   permissions without asking.

@@ -8,9 +8,14 @@ Releases follow the project's git tags. Entries were reconstructed from the comm
 
 ## [1.3.0] - 2026-11-02
 
-- Sideways trackpad swipes over the video skip (left→right forward, right→left back), with a
-  "Sideways swipe skips" setting. Before, they were passed to the browser, which rubber-banded
+- Trackpad timeline: sideways swipes over the video scrub through it. A swipe across the whole
+  trackpad covers the whole video (or half, a quarter, a tenth: "Timeline sensitivity"), with the
+  time and progress shown live. Scrubbing stops when the fingers lift (macOS momentum is
+  ignored). "Sideways swipe" can also be set to Skip (10-s skips) or Off (the browser's
+  back/forward swipe). Before, sideways swipes were passed to the browser, which rubber-banded
   the page or went back a page.
+- Quick trackpad swipes in a row each count. Before, only the first one acted until the pointer
+  was moved, because macOS momentum filled the gaps between swipes.
 - A wobbly trackpad swipe skips in its overall direction; before, one mostly-vertical event in a
   sideways swipe could make it skip the wrong way.
 - Separate forward and back skip lengths (settings from 1.2.x carry over to both).

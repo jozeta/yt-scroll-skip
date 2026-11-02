@@ -5,7 +5,10 @@ const YSS_DEFAULTS = Object.freeze({
   skipForward: 10, // seconds per forward scroll gesture
   skipBack: 10, // seconds per backward scroll gesture
   invert: false, // true: scroll down = forward (for people who find the default backwards)
-  horizontalSkip: true, // sideways swipe (trackpad) over the player skips; off = browser back/forward swipe
+  // Sideways (trackpad) swipes over the player: 'timeline' = scrub (a full swipe = timelineSpan of
+  // the video), 'skip' = skip like scrolling, 'off' = the browser's back/forward swipe.
+  horizontalSwipe: 'timeline',
+  timelineSpan: 'whole', // 'whole' | 'half' | 'quarter' | 'tenth'
   modifierControls: true, // Alt+scroll = volume, Shift+scroll = speed, sideways swipe while paused = frame step
   toastPosition: 'bottom', // 'bottom' | 'center' | 'top'
   toastSize: 'medium', // 'x-small' | 'small' | 'medium' | 'large' | 'x-large'

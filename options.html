@@ -34,12 +34,25 @@
     <span>Invert direction<small>Scroll down to skip forward. Try this if skips feel backwards (e.g. with macOS natural scrolling).</small></span>
   </label>
   <label>
-    <input type="checkbox" id="horizontalSkip">
-    <span>Sideways swipe skips<small>On a trackpad, swipe left→right over the video to skip forward, right→left to skip back. Turn off to keep the browser's back/forward swipe over the video too.</small></span>
+    <span>Sideways swipe<small>Trackpad swipes left↔right over the video. Timeline: the trackpad is the video's timeline. Skip: like scrolling. Off: the browser's back/forward swipe.</small></span>
+    <select id="horizontalSwipe">
+      <option value="timeline">Timeline</option>
+      <option value="skip">Skip</option>
+      <option value="off">Off</option>
+    </select>
+  </label>
+  <label>
+    <span>Timeline sensitivity<small>How much of the video one swipe across the whole trackpad covers.</small></span>
+    <select id="timelineSpan">
+      <option value="whole">Whole video</option>
+      <option value="half">Half</option>
+      <option value="quarter">Quarter</option>
+      <option value="tenth">Tenth</option>
+    </select>
   </label>
   <label>
     <input type="checkbox" id="modifierControls">
-    <span>Extra controls<small>Alt/Option + scroll: volume. Shift + scroll: playback speed. Sideways swipe while paused: step one frame.</small></span>
+    <span>Extra controls<small>Alt/Option + scroll: volume. Shift + scroll: playback speed. Sideways swipe while paused: step one frame (when Sideways swipe is Skip or Off).</small></span>
   </label>
   <label>
     <span>Overlay position<small>Where the overlay appears over the video.</small></span>

@@ -18,7 +18,8 @@ const DEFAULTS = {
   modifierControls: true,
   toastPosition: 'bottom',
   toastSize: 'medium',
-  horizontalSkip: true,
+  horizontalSwipe: 'timeline',
+  timelineSpan: 'whole',
 };
 const GAP = 300; // > GESTURE_GAP_MS, so the next wheel starts a new gesture
 const MAIN = { x: 200, y: 200 }; // over #movie_player's video
@@ -83,6 +84,36 @@ async function gesture(at, dy, dx = 0) {
 async function setSettings(values) {
   await worker.evaluate((v) => chrome.storage.sync.set(v), values);
   await page.waitForTimeout(100);
+}
+
+// A real recording of a MacBook trackpad in Edge: [ms, deltaX, deltaY, deltaMode] per wheel event.
+// 0–3.5 s: one slow left→right swipe across the whole trackpad (713 px in total).
+// 4.7–7.7 s: three quick left→right swipes in a row, 75 ms and 92 ms apart, each followed by
+// macOS momentum (dy exactly 0, smoothly decaying) until the next swipe's fingers land.
+const recording = JSON.parse(readFileSync(path.join(root, 'test/trackpad-recording.json'), 'utf8'));
+const SLOW_SWIPE = recording.filter(([t]) => t < 4000);
+const QUICK_SWIPES = recording.filter(([t]) => t >= 4000);
+const FIRST_QUICK_SWIPE = recording.filter(([t]) => t >= 4000 && t < 5550);
+
+// Replays wheel events into the page at their recorded timing. transform maps [dx, dy], e.g. to
+// turn the sideways recording into an up/down swipe.
+async function replay(events, transform = (dx, dy) => [dx, dy], at = MAIN) {
+  const mapped = events.map(([t, dx, dy, mode]) => [t, ...transform(dx, dy), mode]);
+  await page.evaluate(
+    async ([events, at]) => {
+      const target = document.elementFromPoint(at.x, at.y);
+      const start = performance.now() - events[0][0];
+      for (const [t, deltaX, deltaY, deltaMode] of events) {
+        const wait = start + t - performance.now();
+        if (wait > 1) await new Promise((r) => setTimeout(r, wait));
+        target.dispatchEvent(
+          new WheelEvent('wheel', { deltaX, deltaY, deltaMode, clientX: at.x, clientY: at.y, bubbles: true, cancelable: true }),
+        );
+      }
+    },
+    [mapped, at],
+  );
+  await sleep(GAP);
 }
 
 test('scroll up skips forward, scroll down skips back, toast shows position', async () => {
@@ -196,7 +227,8 @@ async function movedBy(fn) {
 const approx = (actual, expected, label) =>
   assert.ok(Math.abs(actual - expected) < 0.75, `${label}: moved ${actual.toFixed(2)} s, expected ${expected}`);
 
-test('sideways trackpad swipe while playing skips (left→right forward, right→left back)', async () => {
+test('sideways swipe in "skip" mode skips (left→right forward, right→left back)', async () => {
+  await setSettings({ horizontalSwipe: 'skip' });
   await setTime(30);
   await play();
   const swipe = (dx) => async () => {
@@ -211,6 +243,7 @@ test('sideways trackpad swipe while playing skips (left→right forward, right�
 });
 
 test('a wobbly, mostly sideways swipe is one skip in its overall direction', async () => {
+  await setSettings({ horizontalSwipe: 'skip' });
   await setTime(30);
   await play();
   const moved = await movedBy(async () => {
@@ -222,14 +255,78 @@ test('a wobbly, mostly sideways swipe is one skip in its overall direction', asy
 });
 
 test('invert direction also flips sideways swipes', async () => {
-  await setSettings({ invert: true });
+  await setSettings({ invert: true, horizontalSwipe: 'skip' });
   await setTime(30);
   await play();
   approx(await movedBy(() => gesture(MAIN, 0, 100)), -10, 'inverted: left→right goes back');
 });
 
-test('with "sideways swipe skips" off, sideways swipes while playing are passed through', async () => {
-  await setSettings({ horizontalSkip: false });
+// --- Real trackpad recording ---
+
+test('trackpad: three quick swipes in a row are three skips, not one (momentum gap)', async () => {
+  // Up/down version of the recording: the same timing and momentum, as a vertical swipe up.
+  await setTime(30);
+  await replay(QUICK_SWIPES, (dx, dy) => [dy, -dx]);
+  assert.equal(await time(), 60);
+  assert.match(await toastText(), /^\+30 s/);
+});
+
+test('trackpad: quick sideways swipes in "skip" mode are three skips', async () => {
+  await setSettings({ horizontalSwipe: 'skip' });
+  await setTime(30);
+  await play(); // paused, sideways swipes would step frames instead
+  approx(await movedBy(() => replay(QUICK_SWIPES)), 30, 'three skips');
+});
+
+test('timeline: a full slow swipe across the trackpad covers the whole video', async () => {
+  await setTime(0);
+  await replay(SLOW_SWIPE);
+  assert.equal(await time(), 119.5, 'to the end (minus the end guard)');
+  assert.match(await toastText(), /^\+1:59 · 1:59 \/ 2:00$/);
+});
+
+test('timeline: sensitivity sets how much of the video a full swipe covers', async () => {
+  await setSettings({ timelineSpan: 'half' });
+  await setTime(10);
+  await replay(SLOW_SWIPE);
+  const t = await time();
+  assert.ok(Math.abs(t - (10 + 60 * (713 / 700))) < 2, `half the video: ${t}`);
+});
+
+test('timeline: scrubbing stops when the fingers lift (momentum is ignored)', async () => {
+  await setSettings({ timelineSpan: 'tenth' }); // 12 s per full swipe on this 2-minute video
+  await setTime(30);
+  await replay(FIRST_QUICK_SWIPE);
+  const moved = (await time()) - 30;
+  // Fingers: ~550 px ≈ 9.4 s. With momentum (2368 px) it would be ~40 s.
+  assert.ok(moved > 8 && moved < 12, `moved ${moved.toFixed(1)} s`);
+});
+
+test('timeline: swipes scrub both ways, paused or playing, and invert flips it', async () => {
+  await setTime(30);
+  for (let i = 0; i < 5; i++) await wheel(MAIN, 70, 0); // 350 px = half the trackpad
+  await sleep(GAP);
+  assert.ok(Math.abs((await time()) - 90) < 0.5, 'half the trackpad = half the video forward');
+  assert.equal(await toastText(), '+1:00 · 1:30 / 2:00');
+  for (let i = 0; i < 5; i++) await wheel(MAIN, -35, 0);
+  await sleep(GAP);
+  assert.ok(Math.abs((await time()) - 60) < 0.5, 'back a quarter');
+
+  await setSettings({ invert: true });
+  for (let i = 0; i < 5; i++) await wheel(MAIN, 35, 0);
+  await sleep(GAP);
+  assert.ok(Math.abs((await time()) - 30) < 0.5, 'inverted: left→right goes back');
+  assert.ok(await page.evaluate(() => document.getElementById('main').paused), 'still paused');
+});
+
+test('timeline: up/down swipes and mouse wheels still skip', async () => {
+  await setTime(30);
+  await gesture(MAIN, -100);
+  assert.equal(await time(), 40);
+});
+
+test('with sideways swipes off, they are passed through while playing (browser back/forward)', async () => {
+  await setSettings({ horizontalSwipe: 'off' });
   await setTime(30);
   await play();
   await gesture(MAIN, 0, 100);
@@ -237,7 +334,8 @@ test('with "sideways swipe skips" off, sideways swipes while playing are passed 
   assert.ok((await time()) < 39, 'no skip');
 });
 
-test('horizontal swipe while paused steps one frame', async () => {
+test('horizontal swipe while paused steps one frame (outside timeline mode)', async () => {
+  await setSettings({ horizontalSwipe: 'skip' });
   await setTime(30);
   await gesture(MAIN, 0, 100);
   assert.ok(Math.abs((await time()) - (30 + 1 / 30)) < 0.01);
@@ -245,6 +343,7 @@ test('horizontal swipe while paused steps one frame', async () => {
 });
 
 test('frame steps stay inside the video and stop short of the end', async () => {
+  await setSettings({ horizontalSwipe: 'skip' });
   await setTime(119.6);
   await gesture(MAIN, 0, 100);
   assert.equal(await time(), 119.6, 'no step into the end (autoplay)');
@@ -442,7 +541,8 @@ test('options page saves checkbox, number and select changes', async () => {
   await page.fill('#skipBack', '5');
   await page.press('#skipBack', 'Tab');
   await page.click('#invert');
-  await page.click('#horizontalSkip');
+  await page.selectOption('#horizontalSwipe', 'skip');
+  await page.selectOption('#timelineSpan', 'quarter');
   await page.fill('#skipForward', '25');
   await page.press('#skipForward', 'Tab'); // fires "change"
   await page.waitForTimeout(150);
@@ -452,7 +552,8 @@ test('options page saves checkbox, number and select changes', async () => {
   assert.equal(saved.skipBack, 5);
   assert.equal(saved.toastPosition, 'top');
   assert.equal(saved.toastSize, 'x-large');
-  assert.equal(saved.horizontalSkip, false);
+  assert.equal(saved.horizontalSwipe, 'skip');
+  assert.equal(saved.timelineSpan, 'quarter');
   assert.equal(await page.textContent('#status'), 'Saved');
 });
 
