@@ -8,7 +8,7 @@ A small browser extension that lets you skip forward or backward in a YouTube vi
 
 (Both lengths can be set separately.)
 
-A small panel over the player confirms each skip: how far the video actually moved in large type (`+10 s`), where you landed (`4:32 / 12:05`), and a thin progress bar. Quick repeated skips on the same video add up (`+30 s`). Near the end or start it shows the real, shorter jump, or `End` / `Start` when there's nowhere left to go. It's a translucent grey panel with a thin light border and system fonts, with no icons. Its position and size can be changed in the settings.
+A small panel over the player confirms each skip: how far the video actually moved in large type (`+10 s`), where you landed (`4:32 / 12:05`), and a thin progress bar. Quick repeated skips on the same video add up (`+30 s`). Near the end or start it shows the real, shorter jump, or `End` / `Start` when there's nowhere left to go. It's a translucent grey panel with a thin light border and system fonts, with no icons. It sits in the centre of the player by default, and its position and size can be changed in the settings. YouTube's own control bar (red timeline and time) appears at the same time, as if you had moved the mouse.
 
 ![The toast over the player after two quick forward skips: "+20 s", with "0:52 / 2:00" below](docs/toast.png)
 
@@ -34,6 +34,7 @@ A small panel over the player confirms each skip: how far the video actually mov
   - Hover previews in the feed are ignored.
   - Outside the video, two-finger back/forward swipes still navigate (or everywhere, with "Sideways swipe" set to Off).
   - Forward skips stop just before the end, so they don't trigger autoplay of the next video.
+- **YouTube's own timeline**: every scroll or swipe also wakes YouTube's control bar, so you see its timeline too (can be turned off).
 - **Accessible**: the toast is announced to screen readers (`role="status"`).
 - **Private**: the only permission is `storage` (to save your settings). No tracking and no network requests.
 
@@ -68,7 +69,8 @@ Right-click the toolbar icon → **Options** (or use the **Details → Extension
 | Sideways swipe   | Timeline | Timeline: the trackpad is the video's timeline. Skip: like scrolling. Off: the browser's back/forward swipe |
 | Timeline sensitivity | 25 % | How much of the video one swipe across the whole trackpad covers: 100 %, 75 %, 50 %, 25 % or 10 %. Lower = finer |
 | Extra controls   | on      | Alt+scroll volume, Shift+scroll speed, sideways swipe while paused for one frame |
-| Overlay position | Bottom  | Bottom, Centre or Top of the player                                  |
+| Show YouTube's controls while scrolling | on | YouTube's own control bar (timeline, time) appears while you scroll or swipe |
+| Overlay position | Centre  | Centre, Bottom or Top of the player (centre stays clear of YouTube's control bar) |
 | Overlay size     | Medium  | Extra small (0.65×), Small (0.8×), Medium, Large (1.3×) or Extra large (1.6×) |
 
 An invalid skip length (outside 1–600) is rejected and the previous value is kept. If you used 1.2.x, your old "seconds per skip" is carried over to both directions when the extension updates.

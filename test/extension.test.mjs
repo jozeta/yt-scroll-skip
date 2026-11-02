@@ -16,8 +16,9 @@ const DEFAULTS = {
   skipBack: 10,
   invert: false,
   modifierControls: true,
-  toastPosition: 'bottom',
+  toastPosition: 'center',
   toastSize: 'medium',
+  showControls: true,
   horizontalSwipe: 'timeline',
   timelineSpan: '25',
 };
@@ -278,6 +279,23 @@ test('trackpad: quick sideways swipes in "skip" mode are three skips', async () 
   approx(await movedBy(() => replay(QUICK_SWIPES)), 30, 'three skips');
 });
 
+test('scrolling wakes YouTube\'s own control bar (throttled), unless turned off', async () => {
+  const wakes = () => page.evaluate(() => controlWakes);
+  await setTime(30);
+  await gesture(MAIN, -100);
+  assert.equal(await wakes(), 1, 'a skip shows YouTube\'s controls');
+  for (let i = 0; i < 12; i++) await wheel(MAIN, 30, 0); // ~0.6 s of scrubbing
+  await sleep(GAP);
+  const during = (await wakes()) - 1;
+  assert.ok(during >= 2 && during <= 4, `kept awake while scrubbing, but throttled: ${during}`);
+
+  await setSettings({ showControls: false });
+  await sleep(300);
+  const before = await wakes();
+  await gesture(MAIN, -100);
+  assert.equal(await wakes(), before, 'off: no synthetic mouse moves');
+});
+
 test('defaults on a fresh install: sideways swipes are a timeline at 25 % per full swipe', async () => {
   await worker.evaluate(() => chrome.storage.sync.clear()); // nothing stored: defaults.js applies
   await open();
@@ -285,6 +303,13 @@ test('defaults on a fresh install: sideways swipes are a timeline at 25 % per fu
   for (let i = 0; i < 5; i++) await wheel(MAIN, 70, 0); // 350 px = half the trackpad
   await sleep(GAP);
   assert.ok(Math.abs((await time()) - 45) < 0.5, `half a swipe = 12.5 % of 2:00 = 15 s, at ${await time()}`);
+  assert.ok((await page.evaluate(() => controlWakes)) > 0, 'YouTube\'s controls are shown by default');
+  const gap = await page.evaluate(() => {
+    const t = document.getElementById('yt-scroll-skip-toast').getBoundingClientRect();
+    const p = document.getElementById('movie_player').getBoundingClientRect();
+    return t.top - p.top - (p.bottom - t.bottom);
+  });
+  assert.ok(Math.abs(gap) < 2, 'the overlay is centred by default, clear of YouTube\'s control bar');
 });
 
 test('timeline: at 100 %, a full slow swipe across the trackpad covers the whole video', async () => {
@@ -558,6 +583,7 @@ test('options page saves checkbox, number and select changes', async () => {
   await page.click('#invert');
   await page.selectOption('#horizontalSwipe', 'skip');
   await page.selectOption('#timelineSpan', '75');
+  await page.click('#showControls');
   await page.fill('#skipForward', '25');
   await page.press('#skipForward', 'Tab'); // fires "change"
   await page.waitForTimeout(150);
@@ -569,6 +595,7 @@ test('options page saves checkbox, number and select changes', async () => {
   assert.equal(saved.toastSize, 'x-large');
   assert.equal(saved.horizontalSwipe, 'skip');
   assert.equal(saved.timelineSpan, '75');
+  assert.equal(saved.showControls, false);
   assert.equal(await page.textContent('#status'), 'Saved');
 });
 
@@ -624,7 +651,12 @@ test('overlay position and size settings', async () => {
     });
   await gesture(MAIN, -100);
   const medium = await box();
-  assert.ok(medium.bottom < medium.top, 'bottom by default');
+  assert.ok(Math.abs(medium.top - medium.bottom) < 2, 'centred by default (clear of YouTube\'s control bar)');
+
+  await setSettings({ toastPosition: 'bottom' });
+  await gesture(MAIN, -100);
+  const bottom = await box();
+  assert.ok(bottom.bottom < bottom.top, 'bottom');
 
   await setSettings({ toastPosition: 'top', toastSize: 'large' });
   await gesture(MAIN, -100);

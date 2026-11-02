@@ -28,6 +28,9 @@
   // little vertically. Two such flat events in a row of at least this size mean momentum.
   const MOMENTUM_MIN_PX = 10;
   const SEEK_INTERVAL_MS = 50; // at most one real seek per this while scrubbing
+  // YouTube shows its control bar on mousemove over the player and hides it a few seconds after
+  // the last one; wheel events don't count. Wake it at most this often while scrolling.
+  const WAKE_CONTROLS_MS = 250;
   const LINE_PX = 16; // deltaMode 1 (lines, e.g. Firefox mouse wheels)
   const PAGE_PX = 800; // deltaMode 2 (pages)
   // Overlay placement and scale, chosen on the options page.
@@ -65,6 +68,8 @@
   let seekTimer = null;
   let pendingSeek = null;
   let lastSeekAt = 0;
+  let lastWakeAt = 0;
+  let wakeNudge = 0;
   // Recent skips in one direction on one video, added up for the toast.
   let accumulated = { total: 0, direction: 0, at: 0, video: null, src: '' };
   let hideTimer = null;
@@ -87,6 +92,18 @@
     }
     if (target instanceof HTMLVideoElement) return { player: target.parentElement, video: target };
     return null;
+  }
+
+  // Show YouTube's own control bar (timeline, time) like a mouse move would. A synthetic
+  // mousemove reaches YouTube's listener from this isolated world, but YouTube ignores moves to
+  // the position it last saw (verified on youtube.com), so alternate 1 px around the pointer.
+  function wakeControls(player, x, y) {
+    if (!settings.showControls || !player) return;
+    const now = Date.now();
+    if (now - lastWakeAt < WAKE_CONTROLS_MS) return;
+    lastWakeAt = now;
+    wakeNudge = wakeNudge ? 0 : 1;
+    player.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x + wakeNudge, clientY: y }));
   }
 
   function isAdShowing(player) {
@@ -410,6 +427,7 @@
     // act, so the page never scrolls underneath.
     e.preventDefault();
     e.stopPropagation();
+    wakeControls(player, e.clientX, e.clientY);
     lastInterval = gap;
     lastWheel = now;
     if (fresh) {

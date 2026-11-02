@@ -10,6 +10,7 @@ const YSS_DEFAULTS = Object.freeze({
   horizontalSwipe: 'timeline',
   timelineSpan: '25', // percent of the video one full trackpad swipe covers: '100' | '75' | '50' | '25' | '10'
   modifierControls: true, // Alt+scroll = volume, Shift+scroll = speed, sideways swipe while paused = frame step
-  toastPosition: 'bottom', // 'bottom' | 'center' | 'top'
-  toastSize: 'medium', // 'x-small' | 'small' | 'medium' | 'large' | 'x-large'
+  toastPosition: 'center', // 'center' | 'bottom' | 'top' (centre keeps it clear of YouTube's control bar)
+  toastSize: 'medium',
+  showControls: true, // wake YouTube's own control bar (timeline) on every scroll or swipe // 'x-small' | 'small' | 'medium' | 'large' | 'x-large'
 });

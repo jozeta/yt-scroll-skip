@@ -8,6 +8,9 @@ Releases follow the project's git tags. Entries were reconstructed from the comm
 
 ## [1.3.0] - 2026-11-02
 
+- Scrolling or swiping over the video shows YouTube's own control bar (red timeline and time) as
+  well, as if the mouse had moved ("Show YouTube's controls while scrolling", on by default). The
+  overlay now sits in the centre by default so it doesn't cover it.
 - Trackpad timeline: sideways swipes over the video scrub through it. A swipe across the whole
   trackpad covers 25 % of the video by default ("Timeline sensitivity": 100, 75, 50, 25 or 10 %), with the
   time and progress shown live. Scrubbing stops when the fingers lift (macOS momentum is

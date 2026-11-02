@@ -34,8 +34,9 @@ permission is `storage`. No network, no build step for the extension itself.
   `document_idle`. The background has both `service_worker` (Chrome) and `scripts` (Firefox),
   which is deliberate. `browser_specific_settings.gecko` is for Firefox.
 - `defaults.js`: `YSS_DEFAULTS` (`enabled`, `skipForward`, `skipBack`, `invert`,
-  `horizontalSwipe`, `timelineSpan`, `modifierControls`, `toastPosition`, `toastSize`), shared
-  by `content.js` and `options.js`. Settings live in `chrome.storage.sync`. 1.2.x stored one
+  `horizontalSwipe`, `timelineSpan`, `modifierControls`, `toastPosition`, `toastSize`,
+  `showControls`), shared by `content.js` and `options.js`. Settings live in
+  `chrome.storage.sync`. 1.2.x stored one
   `skipSeconds`; `migrateSettings()` in `background.js` copies it to both lengths on update.
   Keep migrations when renaming settings.
 - `content.js`: tuning constants at the top (`GESTURE_GAP_MS`, `ACCUMULATE_MS`,
@@ -71,6 +72,11 @@ permission is `storage`. No network, no build step for the extension itself.
   speed and live), translucent grey panel, thin light-grey border, system font stack, no icons
   and no web fonts (no network). The skip toast shows the distance actually moved (`End`/`Start`
   when none), and the running total resets when the video (`currentSrc`) changes.
+- `showControls` (default on): every claimed wheel event wakes YouTube's control bar with a
+  synthetic `mousemove` on the player (`wakeControls`, at most every `WAKE_CONTROLS_MS`). YouTube
+  ignores a move to the position it last saw, so the event alternates 1 px around the pointer;
+  the fixture mimics that. Verified on real youtube.com. The overlay defaults to the centre so
+  it doesn't cover YouTube's bar.
 - The toast goes inside the player when possible; otherwise into `document.fullscreenElement`
   (fullscreen) or `body`.
 - One gesture means one action (except timeline scrubbing): a gesture ends after
