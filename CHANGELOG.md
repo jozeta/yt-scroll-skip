@@ -6,6 +6,14 @@ Releases follow the project's git tags. Entries were reconstructed from the comm
 
 ## [Unreleased]
 
+- Separate forward and back skip lengths (settings from 1.2.x carry over to both).
+- Overlay position (bottom, centre, top) and size (small, medium, large) settings.
+- A thin progress bar in the overlay: position in the video for skips and frame steps, level for
+  volume.
+- The overlay shows how far the video actually moved (e.g. `+4.5 s` near the end), and `End`,
+  `Start` or `Live` when it couldn't move.
+- The running total in the overlay starts over on a new video instead of carrying over.
+- Tiny accidental wheel movements (a resting finger, a brushed trackpad) no longer skip.
 - New overlay design: a larger translucent grey panel (about three times the old area) with a thin
   light-grey border, the value in large type over a quieter detail line, system fonts and no
   icons. Volume, speed and frame steps say what changed ("55 %" / "Volume", "Next frame").

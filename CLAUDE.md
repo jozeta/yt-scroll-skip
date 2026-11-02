@@ -33,12 +33,15 @@ permission is `storage`. No network, no build step for the extension itself.
   `m.youtube.com`, `music.youtube.com` and `www.youtube-nocookie.com`, `all_frames: true`,
   `document_idle`. The background has both `service_worker` (Chrome) and `scripts` (Firefox),
   which is deliberate. `browser_specific_settings.gecko` is for Firefox.
-- `defaults.js`: `YSS_DEFAULTS` (`enabled`, `skipSeconds`, `invert`, `modifierControls`), shared
-  by `content.js` and `options.js`. Settings live in `chrome.storage.sync`.
+- `defaults.js`: `YSS_DEFAULTS` (`enabled`, `skipForward`, `skipBack`, `invert`,
+  `modifierControls`, `toastPosition`, `toastSize`), shared by `content.js` and `options.js`.
+  Settings live in `chrome.storage.sync`. 1.2.x stored one `skipSeconds`; `migrateSettings()` in
+  `background.js` copies it to both lengths on update. Keep migrations when renaming settings.
 - `content.js`: tuning constants at the top (`GESTURE_GAP_MS`, `ACCUMULATE_MS`,
-  `END_GUARD_SECONDS`, steps). A capture-phase `wheel` listener:
-  `findTarget` (player and video under the cursor) → `classify` (skip, volume, speed or frame, or
-  null to pass the event through) → `preventDefault()` → act on the first event of a gesture.
+  `END_GUARD_SECONDS`, `MIN_GESTURE_PX`, steps, `TOAST_POSITIONS`/`TOAST_SCALES`). A
+  capture-phase `wheel` listener: `findTarget` (player and video under the cursor) → `classify`
+  (skip, volume, speed or frame, or null to pass the event through) → `preventDefault()` → act
+  once per gesture, as soon as it has moved `MIN_GESTURE_PX`.
   Settings update live through `storage.onChanged`.
 - `page-bridge.js`: a MAIN-world content script. `content.js` dispatches a cancelable
   `yss-command` CustomEvent (detail = JSON string) on the player. The bridge calls YouTube's
@@ -63,8 +66,10 @@ permission is `storage`. No network, no build step for the extension itself.
   over that layer, find the player beneath via `elementsFromPoint`. Never do this for arbitrary
   overlays, because dialogs covering the player must keep their scroll.
 - Toast design (owner's choice): clean Nordic look, two lines (`.yss-title` value, `.yss-detail`
-  detail), translucent grey panel, thin light-grey border, system font stack, no icons and no
-  web fonts (no network).
+  detail) and a thin `.yss-progress` bar (position for skips/frames, level for volume, hidden for
+  speed and live), translucent grey panel, thin light-grey border, system font stack, no icons
+  and no web fonts (no network). The skip toast shows the distance actually moved (`End`/`Start`
+  when none), and the running total resets when the video (`currentSrc`) changes.
 - The toast goes inside the player when possible; otherwise into `document.fullscreenElement`
   (fullscreen) or `body`.
 - One gesture means one action: a gesture ends after `GESTURE_GAP_MS` without wheel events

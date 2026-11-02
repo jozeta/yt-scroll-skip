@@ -5,14 +5,17 @@ A small browser extension that lets you skip forward or backward in a YouTube vi
 - Scroll **up** over the video → skip **forward** 10 seconds
 - Scroll **down** over the video → skip **backward** 10 seconds
 
-A small panel over the player confirms each skip: the jump in large type (`+10 s`) and where you landed below it (`4:32 / 12:05`). Quick repeated skips add up (`+30 s`). It's a translucent grey panel with a thin light border and system fonts, with no icons.
+(Both lengths can be set separately.)
+
+A small panel over the player confirms each skip: how far the video actually moved in large type (`+10 s`), where you landed (`4:32 / 12:05`), and a thin progress bar. Quick repeated skips on the same video add up (`+30 s`). Near the end or start it shows the real, shorter jump, or `End` / `Start` when there's nowhere left to go. It's a translucent grey panel with a thin light border and system fonts, with no icons. Its position and size can be changed in the settings.
 
 ![The toast over the player after two quick forward skips: "+20 s", with "0:52 / 2:00" below](docs/toast.png)
 
 ## Features
 
 - **One gesture = one skip**, even with trackpad momentum scrolling. The page never scrolls underneath the player while you skip. Pressing a modifier mid-scroll (say, Alt for volume) counts as a new gesture, so it isn't swallowed.
-- **Settings**: seconds per skip, invert direction, extra controls, and on/off.
+- **No accidental skips**: a gesture has to move at least a little (15 px, a fraction of one wheel notch) before it acts, so a resting finger on a Magic Mouse or a brushed trackpad does nothing.
+- **Settings**: forward and back skip lengths, invert direction, extra controls, overlay position and size, and on/off.
 - **On/off from the toolbar**: click the extension icon. An `OFF` badge shows when it's disabled.
 - **Extra controls** (can be turned off):
   - Alt/Option + scroll: volume
@@ -57,15 +60,18 @@ Right-click the toolbar icon → **Options** (or use the **Details → Extension
 | Setting          | Default | What it does                                                         |
 |------------------|---------|----------------------------------------------------------------------|
 | Enabled          | on      | Same as clicking the toolbar icon                                    |
-| Seconds per skip | 10      | How far one scroll gesture jumps (1–600)                             |
+| Skip forward     | 10      | Seconds per forward scroll gesture (1–600)                           |
+| Skip back        | 10      | Seconds per backward scroll gesture (1–600)                          |
 | Invert direction | off     | Scroll down = forward. Try it if the default feels backwards, e.g. with macOS natural scrolling |
 | Extra controls   | on      | Alt+scroll volume, Shift+scroll speed, sideways swipe while paused for one frame |
+| Overlay position | Bottom  | Bottom, Centre or Top of the player                                  |
+| Overlay size     | Medium  | Small (0.8×), Medium or Large (1.3×)                                 |
 
-An invalid "seconds per skip" (outside 1–600) is rejected and the previous value is kept.
+An invalid skip length (outside 1–600) is rejected and the previous value is kept. If you used 1.2.x, your old "seconds per skip" is carried over to both directions when the extension updates.
 
 ![The options page](docs/options.png)
 
-Finer tuning (the gesture gap, how long skips keep adding up, the end guard, volume and speed steps) is in the constants at the top of `content.js`.
+Finer tuning (the gesture gap, the minimum gesture distance, how long skips keep adding up, the end guard, volume and speed steps) is in the constants at the top of `content.js`.
 
 ## How it works
 
@@ -75,7 +81,7 @@ The content script (`content.js`, with the shared defaults from `defaults.js`) r
 2. Finds the player under the cursor (`#movie_player`, `#shorts-player` or `.html5-video-player`) and the `<video>` inside it. It skips player popups and feed hover previews.
 3. Backs off if that player is showing an ad.
 4. Decides what the event means: skip, volume, speed, frame step, or nothing (the event is then left for the page).
-5. Calls `preventDefault()`. It only acts on the first event of a gesture; a gesture ends after 200 ms without wheel events, or when the action changes (e.g. Alt pressed mid-scroll).
+5. Calls `preventDefault()`. It only acts on the first event of a gesture; a gesture ends after 200 ms without wheel events, or when the action changes (e.g. Alt pressed mid-scroll). A gesture acts once it has moved 15 px in total.
 
 Seeks and frame steps are clamped to `video.seekable`. The toast is placed inside the player, or inside `document.fullscreenElement` when needed, because only the fullscreen element's subtree is drawn in fullscreen.
 

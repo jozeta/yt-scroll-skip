@@ -40,10 +40,10 @@ try {
   await page.locator('#movie_player').screenshot({ path: path.join(out, 'toast.png') });
 
   const id = new URL(worker.url()).host;
-  await page.setViewportSize({ width: 420, height: 280 });
+  await page.setViewportSize({ width: 440, height: 200 });
   await page.goto(`chrome-extension://${id}/options.html`);
-  await page.waitForFunction(() => document.getElementById('skipSeconds').value !== '');
-  await page.screenshot({ path: path.join(out, 'options.png') });
+  await page.waitForFunction(() => document.getElementById('skipForward').value !== '');
+  await page.screenshot({ path: path.join(out, 'options.png'), fullPage: true });
   console.log('wrote docs/toast.png and docs/options.png');
 } finally {
   await context.close();

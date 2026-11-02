@@ -2,7 +2,10 @@
 // eslint-disable-next-line no-unused-vars
 const YSS_DEFAULTS = Object.freeze({
   enabled: true, // toggled by clicking the toolbar icon, or on the options page
-  skipSeconds: 10, // seconds per scroll gesture
+  skipForward: 10, // seconds per forward scroll gesture
+  skipBack: 10, // seconds per backward scroll gesture
   invert: false, // true: scroll down = forward (for people who find the default backwards)
   modifierControls: true, // Alt+scroll = volume, Shift+scroll = speed, sideways swipe while paused = frame step
+  toastPosition: 'bottom', // 'bottom' | 'center' | 'top'
+  toastSize: 'medium', // 'small' | 'medium' | 'large'
 });

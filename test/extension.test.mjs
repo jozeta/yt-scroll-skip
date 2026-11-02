@@ -10,7 +10,15 @@ import { chromium } from 'playwright';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fixture = readFileSync(path.join(root, 'test/fixture.html'), 'utf8');
-const DEFAULTS = { enabled: true, skipSeconds: 10, invert: false, modifierControls: true };
+const DEFAULTS = {
+  enabled: true,
+  skipForward: 10,
+  skipBack: 10,
+  invert: false,
+  modifierControls: true,
+  toastPosition: 'bottom',
+  toastSize: 'medium',
+};
 const GAP = 300; // > GESTURE_GAP_MS, so the next wheel starts a new gesture
 const MAIN = { x: 200, y: 200 }; // over #movie_player's video
 const MENU = { x: 560, y: 50 }; // over the settings menu inside the player
@@ -42,7 +50,10 @@ async function open(url = 'https://www.youtube.com/watch?v=test') {
 }
 
 beforeEach(async () => {
-  await worker.evaluate((d) => chrome.storage.sync.set(d), DEFAULTS);
+  await worker.evaluate(async (d) => {
+    await chrome.storage.sync.clear();
+    await chrome.storage.sync.set(d);
+  }, DEFAULTS);
   await open();
 });
 
@@ -106,6 +117,71 @@ test('forward skips stop short of the end so autoplay is not triggered', async (
   await setTime(115);
   await gesture(MAIN, -100);
   assert.equal(await time(), 119.5);
+});
+
+test('the toast shows how far the video actually moved, not the setting', async () => {
+  await setTime(115);
+  await gesture(MAIN, -100);
+  assert.equal(await toastText(), '+4.5 s · 1:59 / 2:00', 'shortened by the end guard');
+  await gesture(MAIN, -100);
+  assert.equal(await toastText(), '+4.5 s · 1:59 / 2:00', 'nothing more to add at the end');
+  await sleep(1100);
+  await gesture(MAIN, -100);
+  assert.equal(await toastText(), 'End · 1:59 / 2:00');
+  await setTime(3);
+  await sleep(1100);
+  await gesture(MAIN, 100);
+  assert.equal(await toastText(), '−3 s · 0:00 / 2:00', 'shortened by the start');
+  await gesture(MAIN, 100);
+  assert.equal(await toastText(), '−3 s · 0:00 / 2:00');
+});
+
+test('the running total starts over when the video changes', async () => {
+  await setTime(30);
+  await gesture(MAIN, -100);
+  assert.match(await toastText(), /^\+10 s/);
+  await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const v = document.getElementById('main');
+        v.addEventListener('loadedmetadata', resolve, { once: true });
+        v.src = silentWav(120); // what YouTube does on navigation: same <video>, new src
+      }),
+  );
+  await setTime(30);
+  await gesture(MAIN, -100);
+  assert.match(await toastText(), /^\+10 s/, 'not +20 s');
+});
+
+test('tiny accidental wheel movements do not skip, but add up within a gesture', async () => {
+  await setTime(30);
+  await gesture(MAIN, -2); // a resting finger on a Magic Mouse
+  assert.equal(await time(), 30);
+  assert.equal(await toastText(), null);
+  for (let i = 0; i < 6; i++) await wheel(MAIN, 0, -3); // a slow, deliberate trackpad swipe
+  await sleep(GAP);
+  assert.equal(await time(), 40, 'one skip once it moved far enough');
+});
+
+test('forward and back have separate lengths', async () => {
+  await setSettings({ skipForward: 15, skipBack: 5 });
+  await setTime(30);
+  await gesture(MAIN, -100);
+  assert.equal(await time(), 45);
+  await sleep(1100);
+  await gesture(MAIN, 100);
+  assert.equal(await time(), 40);
+  assert.match(await toastText(), /^−5 s/);
+});
+
+test('settings from 1.2.x (one skipSeconds) carry over to both directions on update', async () => {
+  await worker.evaluate(async () => {
+    await chrome.storage.sync.clear();
+    await chrome.storage.sync.set({ skipSeconds: 20, invert: true });
+    await migrateSettings();
+  });
+  const after = await worker.evaluate(() => chrome.storage.sync.get(null));
+  assert.deepEqual(after, { skipForward: 20, skipBack: 20, invert: true });
 });
 
 test('horizontal swipe while playing is passed through', async () => {
@@ -263,7 +339,7 @@ test('/shorts/ pages are left alone', async () => {
 
 test('settings: skip length, invert and the on/off switch apply live', async () => {
   await setTime(30);
-  await setSettings({ skipSeconds: 5, invert: true });
+  await setSettings({ skipForward: 5, invert: true });
   await gesture(MAIN, 100); // inverted: down = forward
   assert.equal(await time(), 35);
 
@@ -299,41 +375,49 @@ async function openOptions() {
   await page.close();
   page = await context.newPage();
   await page.goto(`chrome-extension://${id}/options.html`);
-  await page.waitForFunction(() => document.getElementById('skipSeconds').value !== '');
+  await page.waitForFunction(() => document.getElementById('skipForward').value !== '');
 }
 
 test('options page shows the stored settings', async () => {
-  await worker.evaluate(() => chrome.storage.sync.set({ skipSeconds: 15, invert: true, modifierControls: false }));
+  await worker.evaluate(() => chrome.storage.sync.set({ skipForward: 15, invert: true, modifierControls: false }));
   await openOptions();
   const values = await page.evaluate(() => ({
     enabled: document.getElementById('enabled').checked,
-    skipSeconds: document.getElementById('skipSeconds').value,
+    skipForward: document.getElementById('skipForward').value,
     invert: document.getElementById('invert').checked,
     modifierControls: document.getElementById('modifierControls').checked,
   }));
-  assert.deepEqual(values, { enabled: true, skipSeconds: '15', invert: true, modifierControls: false });
+  assert.deepEqual(values, { enabled: true, skipForward: '15', invert: true, modifierControls: false });
 });
 
-test('options page saves checkbox and number changes', async () => {
+test('options page saves checkbox, number and select changes', async () => {
   await openOptions();
+  await page.selectOption('#toastPosition', 'top');
+  await page.selectOption('#toastSize', 'large');
+  await page.fill('#skipBack', '5');
+  await page.press('#skipBack', 'Tab');
   await page.click('#invert');
-  await page.fill('#skipSeconds', '25');
-  await page.press('#skipSeconds', 'Tab'); // fires "change"
+  await page.fill('#skipForward', '25');
+  await page.press('#skipForward', 'Tab'); // fires "change"
   await page.waitForTimeout(150);
   assert.equal((await stored()).invert, true);
-  assert.equal((await stored()).skipSeconds, 25);
+  const saved = await stored();
+  assert.equal(saved.skipForward, 25);
+  assert.equal(saved.skipBack, 5);
+  assert.equal(saved.toastPosition, 'top');
+  assert.equal(saved.toastSize, 'large');
   assert.equal(await page.textContent('#status'), 'Saved');
 });
 
 test('options page rejects out-of-range skip lengths and keeps the previous value', async () => {
-  await worker.evaluate(() => chrome.storage.sync.set({ skipSeconds: 15 }));
+  await worker.evaluate(() => chrome.storage.sync.set({ skipForward: 15 }));
   await openOptions();
   for (const bad of ['0', '9999', '-5', '']) {
-    await page.fill('#skipSeconds', bad);
-    await page.press('#skipSeconds', 'Tab');
+    await page.fill('#skipForward', bad);
+    await page.press('#skipForward', 'Tab');
     await page.waitForTimeout(100);
-    assert.equal((await stored()).skipSeconds, 15, `"${bad}" keeps the previous value`);
-    assert.equal(await page.inputValue('#skipSeconds'), '15');
+    assert.equal((await stored()).skipForward, 15, `"${bad}" keeps the previous value`);
+    assert.equal(await page.inputValue('#skipForward'), '15');
   }
 });
 
@@ -350,6 +434,46 @@ test('toast sits inside the player and is announced to screen readers', async ()
     return { parent: t.parentElement.id, role: t.getAttribute('role'), live: t.getAttribute('aria-live') };
   });
   assert.deepEqual(info, { parent: 'movie_player', role: 'status', live: 'polite' });
+});
+
+test('the toast has a progress bar: position for skips, level for volume, none for speed', async () => {
+  const bar = () =>
+    page.evaluate(() => {
+      const track = document.querySelector('#yt-scroll-skip-toast .yss-progress');
+      if (track.style.display === 'none') return null;
+      return Math.round((track.firstChild.getBoundingClientRect().width / track.getBoundingClientRect().width) * 100);
+    });
+  await setTime(50);
+  await gesture(MAIN, -100);
+  assert.equal(await bar(), 50, '60 s of 120 s');
+  await withKey('Alt', () => gesture(MAIN, -100));
+  assert.equal(await bar(), 55, 'volume 55 %');
+  await withKey('Shift', () => gesture(MAIN, -100));
+  assert.equal(await bar(), null);
+});
+
+test('overlay position and size settings', async () => {
+  const box = () =>
+    page.evaluate(() => {
+      const t = document.getElementById('yt-scroll-skip-toast').getBoundingClientRect();
+      const p = document.getElementById('movie_player').getBoundingClientRect();
+      return { top: t.top - p.top, bottom: p.bottom - t.bottom, width: t.width };
+    });
+  await gesture(MAIN, -100);
+  const medium = await box();
+  assert.ok(medium.bottom < medium.top, 'bottom by default');
+
+  await setSettings({ toastPosition: 'top', toastSize: 'large' });
+  await gesture(MAIN, -100);
+  const large = await box();
+  assert.ok(large.top < large.bottom, 'top');
+  assert.ok(Math.abs(large.width / medium.width - 1.3) < 0.02, 'large is 1.3×');
+
+  await setSettings({ toastPosition: 'center', toastSize: 'small' });
+  await gesture(MAIN, -100);
+  const small = await box();
+  assert.ok(Math.abs(small.top - small.bottom) < 2, 'centred');
+  assert.ok(Math.abs(small.width / medium.width - 0.8) < 0.02, 'small is 0.8×');
 });
 
 test('toast design: no icons, grey translucent panel with a thin light border', async () => {
