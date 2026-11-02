@@ -18,6 +18,10 @@
   const PLAYER_POPUP_SELECTOR = '.ytp-popup, .ytp-settings-menu, .ytp-panel-menu';
   // Hover-to-play previews in feeds also use .html5-video-player; never treat them as the player.
   const INLINE_PREVIEW_SELECTOR = '#inline-player, #video-preview, ytd-video-preview';
+  // YouTube's current embed player draws its controls in this body-level layer *on top of*
+  // #movie_player rather than inside it. Over it, look underneath for the player. Only this
+  // layer: doing it for any overlay would steal scrolling from dialogs that cover the player.
+  const PLAYER_CONTROLS_LAYER_SELECTOR = '#player-controls';
 
   const settings = { ...YSS_DEFAULTS };
   chrome.storage.sync.get(YSS_DEFAULTS, (stored) => Object.assign(settings, stored));
@@ -35,11 +39,15 @@
 
   // Resolve the player and video under the cursor, so the video we seek is always the one
   // being scrolled over (not some other <video> on the page).
-  function findTarget(target) {
+  function findTarget(target, x, y) {
     if (!target || typeof target.closest !== 'function') return null;
     if (target.closest(PLAYER_POPUP_SELECTOR) || target.closest(INLINE_PREVIEW_SELECTOR)) return null;
 
-    const player = target.closest(PLAYER_SELECTOR);
+    let player = target.closest(PLAYER_SELECTOR);
+    if (!player && target.closest(PLAYER_CONTROLS_LAYER_SELECTOR)) {
+      const below = document.elementsFromPoint(x, y).find((el) => el.closest(PLAYER_SELECTOR));
+      player = below ? below.closest(PLAYER_SELECTOR) : null;
+    }
     if (player) {
       const video = player.querySelector('video');
       return video ? { player, video } : null;
@@ -221,7 +229,7 @@
     if (e.ctrlKey || e.metaKey) return; // don't hijack pinch-to-zoom / browser zoom
     if (location.pathname.startsWith('/shorts/')) return; // don't hijack Shorts scroll navigation
 
-    const found = findTarget(e.target);
+    const found = findTarget(e.target, e.clientX, e.clientY);
     if (!found) return;
     const { player, video } = found;
     if (isAdShowing(player)) return;

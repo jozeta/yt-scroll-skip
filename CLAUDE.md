@@ -57,6 +57,9 @@ permission is `storage`. No network, no build step for the extension itself.
 - Seek the video inside the player under the cursor, never a global `<video>` lookup. Scrolls over
   player popups (`.ytp-popup`, `.ytp-settings-menu`, `.ytp-panel-menu`) and inline hover previews
   (`#inline-player`, `#video-preview`, `ytd-video-preview`) are passed through.
+- Embeds draw their controls in a body-level `#player-controls` layer over `#movie_player`. Only
+  over that layer, find the player beneath via `elementsFromPoint`. Never do this for arbitrary
+  overlays, because dialogs covering the player must keep their scroll.
 - The toast goes inside the player when possible; otherwise into `document.fullscreenElement`
   (fullscreen) or `body`.
 - One gesture means one action: a gesture ends after `GESTURE_GAP_MS` without wheel events
