@@ -6,6 +6,8 @@ Releases follow the project's git tags. Entries were reconstructed from the comm
 
 ## [Unreleased]
 
+- ESLint (flat config, with the no-unsanitized rule) as a dev-only tool; CI runs `npm run lint`
+
 ## [1.3.0] - 2026-11-02
 
 - Scrolling or swiping over the video shows YouTube's own control bar (red timeline and time) as

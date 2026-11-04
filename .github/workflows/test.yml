@@ -16,6 +16,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Lint (ESLint, including the unsafe-DOM rule)
+        run: npm run lint
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: Check syntax

@@ -100,3 +100,16 @@ permission is `storage`. No network, no build step for the extension itself.
   (live/DVR), and stop forward moves `END_GUARD_SECONDS` before the end (no autoplay).
 - Only the `storage` permission (approved by the owner); never add network access or other
   permissions without asking.
+
+## App standards
+
+This repo follows the app standards in `~/Desktop/code/tools/standards/STANDARDS.md` (rule IDs,
+severities; decisions and waivers in `.claude-standards`). `claude-check --repo .` checks it.
+
+```sh
+npm ci && npm run lint   # ESLint (dev-only), incl. the no-unsanitized rule; CI runs it too
+npm test                 # the tests CI runs
+```
+
+Unsafe DOM sinks and unused variables are lint **warnings** for now (existing code); new code
+shouldn't add any. Errors (eval, undefined names, parse errors) fail CI.
