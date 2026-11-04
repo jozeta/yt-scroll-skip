@@ -147,7 +147,7 @@
       white-space: nowrap;
       z-index: 2147483647;
       pointer-events: none;
-      transition: opacity 0.25s ease;
+      transition: ${matchMedia('(prefers-reduced-motion: reduce)').matches ? 'none' : 'opacity 0.25s ease'};
       will-change: opacity;
       opacity: 0;
     `;
