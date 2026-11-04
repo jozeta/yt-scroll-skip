@@ -5,7 +5,7 @@
 Please **do not open a public issue** for security problems.
 
 Report it privately through GitHub instead: go to the **Security** tab of this repository and click
-**Report a vulnerability** ([direct link](https://github.com/jozeta/yt-scroll-skip/security/advisories/new)).
+**Report a vulnerability** ([direct link](https://github.com/jozeta/ext-yt-scroll-skip/security/advisories/new)).
 Include what you found, how to reproduce it, and the impact you expect.
 
 This is a personal project maintained in spare time. You can expect an acknowledgement within a

@@ -126,7 +126,7 @@
   function getToast() {
     if (toast) return toast;
     toast = document.createElement('div');
-    toast.id = 'yt-scroll-skip-toast';
+    toast.id = 'ext-yt-scroll-skip-toast';
     toast.setAttribute('role', 'status');
     toast.setAttribute('aria-live', 'polite');
     toast.style.cssText = `

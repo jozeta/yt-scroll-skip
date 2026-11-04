@@ -65,7 +65,7 @@ const setTime = (t, id = 'main') => page.evaluate(([t, id]) => (document.getElem
 // The toast's two lines (value, detail) joined as "value · detail", or just the value.
 const toastText = () =>
   page.evaluate(() => {
-    const t = document.getElementById('yt-scroll-skip-toast');
+    const t = document.getElementById('ext-yt-scroll-skip-toast');
     if (!t) return null;
     const detail = t.querySelector('.yss-detail');
     const title = t.querySelector('.yss-title').textContent;
@@ -305,7 +305,7 @@ test('defaults on a fresh install: sideways swipes are a timeline at 25 % per fu
   assert.ok(Math.abs((await time()) - 45) < 0.5, `half a swipe = 12.5 % of 2:00 = 15 s, at ${await time()}`);
   assert.ok((await page.evaluate(() => controlWakes)) > 0, 'YouTube\'s controls are shown by default');
   const gap = await page.evaluate(() => {
-    const t = document.getElementById('yt-scroll-skip-toast').getBoundingClientRect();
+    const t = document.getElementById('ext-yt-scroll-skip-toast').getBoundingClientRect();
     const p = document.getElementById('movie_player').getBoundingClientRect();
     return t.top - p.top - (p.bottom - t.bottom);
   });
@@ -620,7 +620,7 @@ test('options page follows changes made elsewhere (toolbar toggle)', async () =>
 test('toast sits inside the player and is announced to screen readers', async () => {
   await gesture(MAIN, -100);
   const info = await page.evaluate(() => {
-    const t = document.getElementById('yt-scroll-skip-toast');
+    const t = document.getElementById('ext-yt-scroll-skip-toast');
     return { parent: t.parentElement.id, role: t.getAttribute('role'), live: t.getAttribute('aria-live') };
   });
   assert.deepEqual(info, { parent: 'movie_player', role: 'status', live: 'polite' });
@@ -629,7 +629,7 @@ test('toast sits inside the player and is announced to screen readers', async ()
 test('the toast has a progress bar: position for skips, level for volume, none for speed', async () => {
   const bar = () =>
     page.evaluate(() => {
-      const track = document.querySelector('#yt-scroll-skip-toast .yss-progress');
+      const track = document.querySelector('#ext-yt-scroll-skip-toast .yss-progress');
       if (track.style.display === 'none') return null;
       return Math.round((track.firstChild.getBoundingClientRect().width / track.getBoundingClientRect().width) * 100);
     });
@@ -645,7 +645,7 @@ test('the toast has a progress bar: position for skips, level for volume, none f
 test('overlay position and size settings', async () => {
   const box = () =>
     page.evaluate(() => {
-      const t = document.getElementById('yt-scroll-skip-toast').getBoundingClientRect();
+      const t = document.getElementById('ext-yt-scroll-skip-toast').getBoundingClientRect();
       const p = document.getElementById('movie_player').getBoundingClientRect();
       return { top: t.top - p.top, bottom: p.bottom - t.bottom, width: t.width };
     });
@@ -680,7 +680,7 @@ test('overlay position and size settings', async () => {
 test('toast design: no icons, grey translucent panel with a thin light border', async () => {
   await gesture(MAIN, -100);
   const look = await page.evaluate(() => {
-    const t = document.getElementById('yt-scroll-skip-toast');
+    const t = document.getElementById('ext-yt-scroll-skip-toast');
     const cs = getComputedStyle(t);
     return {
       text: t.textContent,
@@ -702,6 +702,6 @@ test('in fullscreen the toast renders inside the fullscreen element', async () =
   await page.evaluate(() => document.getElementById('movie_player').requestFullscreen());
   await page.waitForTimeout(300);
   await gesture(MAIN, -100);
-  assert.ok(await page.evaluate(() => document.fullscreenElement.contains(document.getElementById('yt-scroll-skip-toast'))));
+  assert.ok(await page.evaluate(() => document.fullscreenElement.contains(document.getElementById('ext-yt-scroll-skip-toast'))));
   await page.evaluate(() => document.exitFullscreen());
 });

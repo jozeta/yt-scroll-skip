@@ -24,7 +24,7 @@ permission is `storage`. No network, no build step for the extension itself.
   `/shorts/`, the home feed (hover previews) and a trackpad swipe.
 - Screenshots: `npm run screenshots` regenerates `docs/toast.png` and `docs/options.png` from
   the fixture. Rerun it when the toast or the options page changes.
-- Release: `npm run package` → `dist/yt-scroll-skip-<version>.zip` (runtime files only). Bump
+- Release: `npm run package` → `dist/ext-yt-scroll-skip-<version>.zip` (runtime files only). Bump
   `version` in `manifest.json` first.
 
 ## Code

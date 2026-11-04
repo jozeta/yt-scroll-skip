@@ -1,5 +1,5 @@
 {
-  "name": "yt-scroll-skip",
+  "name": "ext-yt-scroll-skip",
   "private": true,
   "description": "Dev tooling only. The extension itself has no build step and no runtime dependencies.",
   "type": "module",

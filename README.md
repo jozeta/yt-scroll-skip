@@ -100,7 +100,7 @@ Volume and speed changes go through `page-bridge.js`. It runs in the page's own 
 ```sh
 npm install      # dev tooling only (Playwright)
 npm test         # end-to-end tests in headless Chromium
-npm run package      # dist/yt-scroll-skip-<version>.zip for store upload
+npm run package      # dist/ext-yt-scroll-skip-<version>.zip for store upload
 npm run screenshots  # regenerates docs/toast.png and docs/options.png
 ```
 
