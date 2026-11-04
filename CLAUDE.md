@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-YouTube Scroll to Skip: a small Chrome/Firefox (Manifest V3) extension. Scrolling up over a YouTube
+ext-yt-scroll-skip: a small Chrome/Firefox (Manifest V3) extension. Scrolling up over a YouTube
 player skips forward (10 s by default) and scrolling down skips back, with a toast over the player
 (`+10 s` above `0:40 / 2:00`). It has settings, a toolbar on/off toggle and modifier controls. Its only
 permission is `storage`. No network, no build step for the extension itself.

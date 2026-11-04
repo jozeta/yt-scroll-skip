@@ -5,7 +5,7 @@ function updateBadge(enabled) {
   chrome.action.setBadgeText({ text: enabled ? '' : 'OFF' });
   chrome.action.setBadgeBackgroundColor({ color: '#666' });
   chrome.action.setTitle({
-    title: `YouTube Scroll to Skip: ${enabled ? 'on' : 'off'} (click to turn ${enabled ? 'off' : 'on'})`,
+    title: `ext-yt-scroll-skip: ${enabled ? 'on' : 'off'} (click to turn ${enabled ? 'off' : 'on'})`,
   });
 }
 

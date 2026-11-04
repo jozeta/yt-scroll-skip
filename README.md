@@ -1,4 +1,4 @@
-# YouTube Scroll to Skip
+# ext-yt-scroll-skip
 
 A small browser extension that lets you skip forward or backward in a YouTube video by scrolling over the player. No clicking, no arrow keys, no reaching for the seek bar.
 

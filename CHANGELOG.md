@@ -8,7 +8,7 @@ Releases follow the project's git tags. Entries were reconstructed from the comm
 
 - The toast appears without a fade when "Reduce motion" is on
 - Renamed the project to **ext-yt-scroll-skip** (GitHub repo, package name, release zip, toast
-  element id). The Firefox add-on ID stays `yt-scroll-skip@zetterstrom`, so existing installs keep
+  element id, and the display name: extension name, toolbar tooltip, options page, README). The Firefox add-on ID stays `yt-scroll-skip@zetterstrom`, so existing installs keep
   getting updates
 
 - ESLint (flat config, with the no-unsanitized rule) as a dev-only tool; CI runs `npm run lint`
